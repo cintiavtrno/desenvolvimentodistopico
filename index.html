@@ -186,7 +186,48 @@ A.dec=v=>{const n=nP();let t='';
  t={c:'A impressora emite o certificado. A parcela final é liberada na manhã seguinte e Moradia continua verde no painel. A casa 17 continua fora do mapa.',
   p:'A pendência chega ao Consórcio, que tem 30 dias para responder. O indicador de Participação, que dependia de Moradia, passa a amarelo. Dilson não recebe nenhuma resposta, mas a luz da casa 17 aparece acesa na próxima imagem do drone.',
   v:'O pedido segue para a coordenação. A vistoria exige nova autorização e o prazo do termo continua correndo. Ficou claro para quem precisa assinar que alguém está olhando.'}[v];
- st.fim=1;upObj();ui(`<h2 style="color:#ffb13b">Fase 1 concluída</h2><p>${t}</p><p class="sm">Próximo indicador: Trabalho e renda.</p>`+bt('close','Continuar na sala'));};
+ st.fim=1;upObj();ui(`<h2 style="color:#ffb13b">Fase 1 concluída</h2><p>${t}</p>`+(v==='c'?'<p class="sm">Próximo indicador: Trabalho e renda.</p>'+bt('close','Continuar na sala'):'<p>A campainha toca. Pela câmera da porta, duas pessoas do Consórcio e um robô de obra esperam no corredor.</p>'+bt('luta','Atender a porta','','on')+bt('close','Fingir que não está em casa')));};
+/* ===== BATALHA POR TURNOS ===== */
+const PIS=()=>nP();
+let B=null;
+const barra=(h,m,c)=>`<span style="display:inline-block;width:110px;height:9px;background:#10182a;border:1px solid ${c};vertical-align:middle"><i style="display:block;height:100%;width:${Math.max(0,h/m*100)}%;background:${c}"></i></span> ${Math.max(0,h)}/${m}`;
+function brender(msg){
+ const aliv=B.e.filter(e=>e.hp>0);
+ const lin=(x,c)=>`<div style="margin:.25em 0"><b style="color:${c}">${x.n}</b> ${barra(x.hp,x.max,c)}${x.esc?' · exposto':''}${x.def?' · em guarda':''}</div>`;
+ let h=`<h2 style="color:#ff4fd8">Corredor · Equipe de contenção</h2><div class="grid3" style="grid-template-columns:1fr 1fr;align-items:start"><div>${B.p.map(x=>lin(x,'#00e5d8')).join('')}</div><div>${B.e.map(x=>lin(x,'#ff4fd8')).join('')}</div></div><p class="sm" style="min-height:3.6em;border-top:1px solid #28405a;padding-top:.5em">${msg||''}</p>`;
+ if(B.fim)return h+bt('bfim',B.fim==='v'?'Fechar a porta':'Recomeçar o confronto');
+ const q=B.p[B.vez];h+=`<h3>Vez: ${q.n}</h3>`;
+ if(B.alvo){return h+'<p class="sm">Escolha o alvo.</p><div class="grid3" style="grid-template-columns:1fr 1fr">'+aliv.map(e=>bt('bal',e.n,B.e.indexOf(e))).join('')+'</div>'+bt('bcan','‹ Voltar');}
+ if(B.vez===0)h+=`<div class="grid3"><button class="btn" data-a="bsk" data-v="cita">Citar pista<br><small>dano ${10+6*PIS()}</small></button><button class="btn" data-a="bsk" data-v="laudo" ${st.p.p5?'':'disabled style="opacity:.4"'}>Ler o laudo<br><small>28 · exige Laudo</small></button><button class="btn" data-a="bsk" data-v="resp">Respirar<br><small>cura 18</small></button></div>`;
+ else h+=`<div class="grid3"><button class="btn" data-a="bsk" data-v="emp">Pulso EMP<br><small>22 · 2x em robô</small></button><button class="btn" data-a="bsk" data-v="cam">Gravar a cena<br><small>expõe o alvo</small></button><button class="btn" data-a="bsk" data-v="grd">Guarda<br><small>reduz dano</small></button></div>`;
+ return h;}
+function bini(){B={p:[{n:'Você',hp:70,max:70},{n:'Drone 01',hp:45,max:45}],e:[{n:'Segurança do Consórcio',hp:55,max:55,k:'h'},{n:'Robô de obra',hp:80,max:80,k:'r'}],vez:0,sk:null,alvo:0,fim:0};ui(brender('Eles chegam com um papel timbrado e uma explicação pronta.'));}
+A.luta=bini;A.bcan=()=>{B.alvo=0;ui(brender());};
+function etapa(msg){ /* encerra o turno do jogador atual e roda inimigos ao fim do segundo */
+ B.alvo=0;B.p.forEach(x=>{if(x.hp<=0)x.hp=0;});
+ if(B.e.every(e=>e.hp<=0)){B.fim='v';ui(brender(msg+' O corredor fica em silêncio. Ninguém tem argumento para o que a câmera gravou.'));return;}
+ B.vez++;
+ if(B.vez>1){B.vez=0;let m=msg;for(const e of B.e){if(e.hp<=0)continue;const v=B.p.filter(x=>x.hp>0);if(!v.length)break;const t=v[Math.floor(Math.random()*v.length)];
+   if(e.esc&&Math.random()<.5){m+=` ${e.n} hesita diante da câmera.`;e.esc=0;continue;}e.esc=0;
+   let d=e.k==='r'?14:10;d+=Math.floor(Math.random()*5);if(t.def)d=Math.ceil(d*.5);t.hp-=d;m+=` ${e.n} atinge ${t.n} (-${d}).`;}
+  B.p.forEach(x=>x.def=0);
+  if(B.p.every(x=>x.hp<=0)){B.fim='d';ui(brender(m+' Vocês caem. A porta fecha por fora.'));return;}
+  if(B.p[0].hp<=0){B.vez=1;} msg=m;}
+ else if(B.p[1].hp<=0){return etapa(msg);}
+ ui(brender(msg));}
+A.bsk=v=>{B.sk=v;if(v==='resp'){const q=B.p[0];q.hp=Math.min(q.max,q.hp+18);return etapa('Você respira e confere o caderno (+18).');}
+ if(v==='grd'){B.p[1].def=1;return etapa('Drone 01 se coloca entre vocês e a porta.');}
+ B.alvo=1;ui(brender());};
+A.bal=i=>{const e=B.e[i],v=B.sk;let d=0,m='';
+ if(v==='cita'){d=10+6*PIS();m=`Você cita uma observação do caderno diante de ${e.n}. `;}
+ if(v==='laudo'){d=28;m=`Você lê o laudo em voz alta. `;}
+ if(v==='emp'){d=e.k==='r'?44:22;m=`Drone 01 solta um pulso em ${e.n}. `;}
+ if(v==='cam'){e.esc=1;d=8;m=`Drone 01 grava ${e.n} de perto. `;}
+ if(e.esc&&v!=='cam'){d=Math.ceil(d*1.3);}
+ if(e.k==='h'&&v==='emp')d=Math.ceil(d*.5);
+ e.hp-=d;etapa(m+`(-${d})`);};
+A.bfim=()=>{if(B.fim==='v'){B.fim=0;closeUI();toast('A equipe recua. Próximo indicador: Trabalho e renda.',6000);}else bini();};
+
 
 /* ---------- renderizador ---------- */
 const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,powerPreference:'high-performance'});
