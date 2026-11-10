@@ -65,13 +65,13 @@ let tt;function toast(m,ms=4500){const e=$('#toast');e.textContent=m;e.style.dis
 const A={close:closeUI};pn.onclick=e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b.dataset.v);};
 const bt=(a,l,v='',x='')=>`<button class="btn ${x}" data-a="${a}" data-v="${v}">${l}</button>`;
 const call=(who,nome,papel,txt)=>`<div class="call"><div class="vid"><img src="${PORT[who]}"><span class="live">● AO VIVO</span></div><div class="tx"><b>${nome}</b><small>${papel}</small><p>${txt}</p></div></div>`;
-function pista(id){const q=PQ[id],S=q?st.q:st.p;if(S[id])return false;S[id]=1;upObj();toast('Anotado no caderno de campo: '+(q||PISTAS[id])[0]+'.');return true;}
+function pista(id){const q=PQ[id],S=q?st.q:st.p;if(S[id])return false;S[id]=1;upObj();toast('Anotado no caderno de campo: '+(q||PISTAS[id])[0]+'.');if(!st.f2&&!st.av&&st.p.p1&&st.p.p2&&st.p.p3){st.av=1;setTimeout(()=>toast('As 3 observações do drone estão feitas. Aperte Esc, volte ao painel de indicadores e faça as 3 que faltam: no painel, Detalhar Moradia e Abrir laudos; no terminal, atender a chamada do número desconhecido. Cada um vale uma observação.',9000),2600);}return true;}
 
 /* ---------- objetivos ---------- */
 const OB=[['termo','Ler o Termo de Conclusão',()=>st.termo,'termo'],['painel','Conferir o painel de indicadores',()=>st.painel,'painel'],
  ['feed','Lançar o drone no terminal',()=>st.feed,'terminal'],['pistas','Reunir observações ('+nP()+'/6)',()=>nP()>=6,'arquivo'],['fim','Decidir no certificado',()=>st.fim,'impressora']];
-function nextT(){const o=OB.find(o=>!o[2]());return o?TG.find(t=>t.id===o[3]):null;}
-function upObj(){$('#objin').innerHTML='<h4>'+(st.f2?'Fase 2 · Trabalho e renda':'Fase 1 · Moradia')+'</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?'Reunir observações ('+(st.f2?nQ()+'/4':nP()+'/6')+')':o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
+function nextT(){const o=OB.find(o=>!o[2]());return o?TG.find(t=>t.id===(o[0]==='pistas'&&!st.f2&&st.p.p1&&st.p.p2&&st.p.p3?((st.p.p4&&st.p.p5)?'terminal':'painel'):o[3])):null;}
+function upObj(){$('#objin').innerHTML='<h4>'+(st.f2?'Fase 2 · Trabalho e renda':'Fase 1 · Moradia')+'</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?(!st.f2&&st.p.p1&&st.p.p2&&st.p.p3&&nP()<6?'Falta: '+[!st.p.p4&&'Detalhar Moradia (painel)',!st.p.p5&&'Abrir laudos (painel)',!st.p.p6&&'atender a chamada (terminal)'].filter(Boolean).join(', ')+' ('+nP()+'/6)':'Reunir observações ('+(st.f2?nQ()+'/4':nP()+'/6')+')'):o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
 
 /* ---------- textos e menus ---------- */
 const TG=[{id:'termo',x:1.9,y:3.2,l:'Ler o Termo de Conclusão'},{id:'painel',x:2.4,y:1.9,l:'Abrir o painel de indicadores'},{id:'terminal',x:5.4,y:1.9,l:'Usar o terminal do drone'},
@@ -317,7 +317,8 @@ async function montarCidade(){
 const FLAV={fl:['Torre central','Quase todas as janelas estão acesas e nenhuma silhueta aparece nelas. Segundo o painel, são escritórios de fundos de investimento. Esta observação é só de contexto e não entra no caderno.']};
 /* ================= DRONE ================= */
 const dr={...DRONE};let dragging=null;
-function entrarFeed(sem){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');if(!sem&&!st.dv){st.dv=1;A.ajudaD();}else if(!sem)toast('Drone no ar. H: ajuda de controles.',4000);}
+function entrarFeed(sem){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');{let vb=document.getElementById('voltar');if(!vb){vb=document.createElement('button');vb.id='voltar';vb.textContent='Voltar à sala (Esc)';vb.style.cssText='position:absolute;left:14px;bottom:34px;z-index:7;pointer-events:auto;font:inherit;cursor:pointer;color:#9ff;background:rgba(4,12,22,.9);border:1px solid #00e5d8;padding:.4em .8em';vb.onclick=()=>{if(F.on)return;closeUI();sairFeed();};$('#feedui').appendChild(vb);}}
+ if(!sem&&!st.dv){st.dv=1;A.ajudaD();}else if(!sem)toast('Drone no ar. H: ajuda de controles.',4000);}
 function sairFeed(){if(modo!=='feed')return;modo='sala';dockDrone.visible=true;rp.scene=sceneR;rp.camera=camR;$('#feedui').style.display='none';document.body.classList.remove('feed');$('#marks').innerHTML='';}
 let lst;function lista(){if(!lst){lst=document.createElement('div');lst.style.cssText='position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto;max-width:300px';$('#feedui').appendChild(lst);
   hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
@@ -457,7 +458,7 @@ A.dec2=v=>{const n=nQ();
 /* ================= LOOP ================= */
 const dicaEl=document.createElement('div');dicaEl.className='sm';dicaEl.style.cssText='position:fixed;left:12px;bottom:8px;z-index:4;color:#7fb;opacity:.8;font-size:.72em;pointer-events:none';document.body.appendChild(dicaEl);
 const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started)return;
- if(k==='escape'){if(uiOpen&&!F.on)closeUI();else if(modo==='feed'&&!F.on)sairFeed();}
+ if(k==='escape'){if(F.on||Bo.on)return;if(modo==='feed'){closeUI();sairFeed();}else if(uiOpen)closeUI();}
  if(modo==='sala'&&!uiOpen){if((k==='e'||k==='enter'||k===' ')&&!Bo.on)interact();if(k==='q')camAT-=Math.PI/2;if(k==='r')camAT+=Math.PI/2;if(k==='z')CAM.elev=Math.max(.25,CAM.elev-.15);if(k==='x')CAM.elev=Math.min(1.7,CAM.elev+.15);if(k==='c'){CAM.elev=.82;camAT=Math.PI/4;CAM.zoom=9;resize();}if(k==='+'||k==='='){CAM.zoom=Math.max(5,CAM.zoom*.9);resize();}if(k==='-'){CAM.zoom=Math.min(16,CAM.zoom*1.1);resize();}}
  if(modo==='feed'&&!uiOpen&&!F.on){const pr={'1':[3,-.04],'2':[14,-.3],'3':[70,-1.0]}[k];if(pr){dr.go=null;dr.y=pr[0];dr.pitch=pr[1];toast({'1':'Visão rente ao chão','2':'Voo rasante','3':'Visão alta'}[k],1500);}}
  if(k==='h'&&!uiOpen&&!F.on&&!Bo.on)(modo==='feed'?A.ajudaD:A.ajuda)();});
