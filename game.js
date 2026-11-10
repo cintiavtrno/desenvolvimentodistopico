@@ -351,7 +351,7 @@ async function startFight(){closeUI();if(modo!=='feed')entrarFeed(1);toast('Dron
 const bar=(h,m,c)=>`<span style="display:inline-block;width:90px;height:8px;background:#10182a;border:1px solid ${c};vertical-align:middle"><i style="display:block;height:100%;width:${Math.max(0,h/m*100)}%;background:${c}"></i></span>`;
 function atira(from,to,vel,tipo,alvo){const m=new THREE.Mesh(bGeo,tipo?bE:bP);m.position.copy(from);sceneC.add(m);F.bolts.push({m,v:to.clone().sub(from).normalize().multiplyScalar(vel),t:3,tipo,alvo,vel});}
 function fightEnd(v){F.on=0;F.hud.style.display='none';for(const e of F.en)sceneC.remove(e.m);for(const b of F.bolts)sceneC.remove(b.m);F.en=[];F.bolts=[];sceneC.remove(F.me);F.me=null;
- if(v){if(lst)lst.style.display='';sairFeed();toast('Os drones do Consórcio caíram. A transmissão foi preservada e o seu drone voltou para a base.',6000);if(nP()>=0)st.fim=st.fim||0;upObj();}
+ if(v){if(lst)lst.style.display='';sairFeed();toast('Os drones do Consórcio caíram. A transmissão foi preservada e o seu drone voltou para a base.',6000);if(!st.f2&&!st.b1){st.b1=1;setTimeout(()=>ui(`<h2 style="color:#ff4fd8">Reforço por terra</h2><p>Os drones caíram, mas o Consórcio não aceita o sinal perdido. A porta de serviço se abre. A Aranha de Obra entra, e atrás dela vêm protocolos: autômatos enfaixados em papel timbrado, andando em fila.</p>`+bt('boss','Encarar a Aranha','','on')+bt('close','Esperar')),2500);}if(nP()>=0)st.fim=st.fim||0;upObj();}
  else ui(`<h2 style="color:#ff4fd8">Drone abatido</h2><p>A transmissão cai por alguns segundos e volta com a imagem do Consórcio.</p>`+bt('lutar','Tentar de novo','','on')+bt('fugir','Desistir e voltar à sala'));}
 A.fugir=()=>{closeUI();if(lst)lst.style.display='';sairFeed();};
 function fightUpdate(dt,t){
@@ -389,11 +389,12 @@ A.iara=()=>{const n=st.f2?nQ():nP();let k=!st.termo?0:!st.feed?1:st.fim&&!st.f2?
 A.gato=()=>{const al=hot.filter(h=>h.f===(st.f2?2:1)&&!(st.p[h.id]||st.q[h.id])).map(h=>h.nome);
  ui(`<h2>Bit</h2><p class="sm">gato-robô · ronrona em 440 Hz</p><p>${st.feed?(al.length?'Alvos ainda sem registro: '+al.join(', ')+'. Pelo drone, clica no nome na lista e ele vai sozinho.':'Todos os alvos desta fase já estão no caderno. Falta decidir no certificado.'):'Bateria do drone: 100%. Sinal estável. Recomendo o terminal, a mesa da direita.'}</p><p class="sm">Se ele fizer miau de alerta, tem algo vindo.</p>`+bt('close','Fechar'));};
 /* ===== BATALHA CONTRA A ARANHA DE OBRA ===== */
-const Bo={on:0,hp:600,max:600,ph:100,sh:0,m:null,p:new THREE.Vector3(13,0,3.5),att:null,cd:2,stun:0,fire:0,tele:[],proj:[],pick:null,pt:0,res:0,hud:null,say:0,half:0};
+const Bo={mu:[],mt:6,mk:null,on:0,hp:600,max:600,ph:100,sh:0,m:null,p:new THREE.Vector3(13,0,3.5),att:null,cd:2,stun:0,fire:0,tele:[],proj:[],pick:null,pt:0,res:0,hud:null,say:0,half:0};
 const bossMsg=(m)=>{if(Bo.say<0.01){toast(m,2200);Bo.say=3;}};
 function hurt(d){if(Bo.sh){Bo.sh=0;toast('O escudo absorveu o golpe.',1500);return;}Bo.ph-=d;}
 async function startBoss(){closeUI();
  for(const x of Bo.tele)sceneR.remove(x.m);for(const x of Bo.proj)sceneR.remove(x.m);if(Bo.m)sceneR.remove(Bo.m);if(Bo.pick)sceneR.remove(Bo.pick);
+ for(const u of Bo.mu)sceneR.remove(u.m);Bo.mu=[];Bo.mt=6;Bo.mk=(await carregar('Mumia')).scene;
  Bo.tele=[];Bo.proj=[];Bo.hp=Bo.max;Bo.ph=100;Bo.sh=0;Bo.att=null;Bo.cd=2.5;Bo.stun=0;Bo.fire=0;Bo.res=0;Bo.half=0;Bo.say=0;Bo.p.set(13,0,3.5);
  const g=(await carregar('Aranha')).scene.clone(true);g.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(g),sz=b.getSize(new THREE.Vector3());g.scale.multiplyScalar(3.4/Math.max(sz.x,sz.z));g.updateMatrixWorld(true);const b2=new THREE.Box3().setFromObject(g),c=b2.getCenter(new THREE.Vector3());g.position.set(-c.x,-b2.min.y,-c.z);
  g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.material=o.material.clone();o.material.metalness=Math.min(.5,o.material.metalness||0);o.material.emissive=new THREE.Color(0x200508);}});
@@ -406,9 +407,10 @@ async function startBoss(){closeUI();
 A.boss=()=>ui(`<h2 style="color:#ff4fd8">Aranha de Obra</h2><p>Quando um auditor contesta o relatório, o Consórcio manda a Aranha de Obra. Ela foi feita para demolir e desobstruir terreno, e agora desobstrui o que atrapalha o cronograma. Se ela te alcançar, as anotações do caderno somem junto com o resto.</p><p>Objetivo: derrubar a Aranha antes que ela derrube você.</p><h3>Como jogar</h3><p>WASD ou setas: mover · Q / R: girar a câmera<br>Espaço: jogar uma página do caderno (mira sozinha na Aranha; cada observação anotada aumenta o dano)<br>Círculo vermelho no chão: golpe em 1 segundo, saia de dentro<br>Linha vermelha: ela vai avançar. Depois do avanço ela fica tonta por uns segundos e leva o dobro de dano<br>Pegue o escudo azul no chão: ele absorve um golpe.</p>`+bt('bossgo','Entrar em combate','','on')+bt('close','Voltar'));
 A.bossgo=startBoss;
 A.bossfugir=()=>{closeUI();};
-function bossEnd(v){Bo.on=0;Bo.hud.style.display='none';for(const x of Bo.tele)sceneR.remove(x.m);for(const x of Bo.proj)sceneR.remove(x.m);Bo.tele=[];Bo.proj=[];if(Bo.pick){sceneR.remove(Bo.pick);Bo.pick=null;}
+function bossEnd(v){Bo.on=0;for(const u of Bo.mu)sceneR.remove(u.m);Bo.mu=[];Bo.hud.style.display='none';for(const x of Bo.tele)sceneR.remove(x.m);for(const x of Bo.proj)sceneR.remove(x.m);Bo.tele=[];Bo.proj=[];if(Bo.pick){sceneR.remove(Bo.pick);Bo.pick=null;}
  if(v){const m=Bo.m;Bo.m=null;sceneR.remove(m);toast('A Aranha desabou. Iara: "Anota isso no relatório."',7000);}
  else{ui(`<h2 style="color:#ff4fd8">Derrubada</h2><p>A Aranha te encurrala perto da porta e as páginas se espalham pelo chão.</p>`+bt('bossgo','Tentar de novo','','on')+bt('bossfugir','Desistir'));}}
+function mum(){const g=Bo.mk.clone(true);g.traverse(o=>{if(o.isMesh){o.castShadow=true;const m=o.material=o.material.clone();m.emissive=new THREE.Color(0xffffff);m.emissiveMap=m.map;m.emissiveIntensity=.25;m.metalness=0;m.roughness=.9;}});g.updateMatrixWorld(true);let b=new THREE.Box3().setFromObject(g);const k=1.7/b.getSize(new THREE.Vector3()).y;g.scale.multiplyScalar(k);g.updateMatrixWorld(true);b.setFromObject(g);const c=b.getCenter(new THREE.Vector3());g.position.set(-c.x,-b.min.y,-c.z);const w=new THREE.Group();w.add(g);return w;}
 function ring(x,z,r){const m=new THREE.Mesh(new THREE.CircleGeometry(r,40),new THREE.MeshBasicMaterial({color:0xff2a40,transparent:true,opacity:.35,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(x,.04,z);sceneR.add(m);return m;}
 function bossUpdate(dt,t){
  if(!Bo.m)return;Bo.say-=dt;Bo.cd-=dt;Bo.fire-=dt;const P=new THREE.Vector3(pl.x,0,pl.y),d=P.clone().sub(Bo.p),dist=d.length();
@@ -430,8 +432,12 @@ function bossUpdate(dt,t){
  Bo.m.position.set(Bo.p.x,Math.sin(t*9)*.04,Bo.p.z);Bo.m.rotation.y=Math.atan2(d.x,d.z);
  /* tiro do jogador */
  if(!uiOpen&&keys[' ']&&Bo.fire<=0){Bo.fire=.35;const m=new THREE.Mesh(new THREE.BoxGeometry(.3,.03,.4),new THREE.MeshBasicMaterial({color:0xfff1b0}));m.position.set(pl.x,1.1,pl.y);sceneR.add(m);Bo.proj.push({m,v:Bo.p.clone().setY(1).sub(m.position).normalize().multiplyScalar(18),t:2});}
- for(const q of Bo.proj){q.t-=dt;q.m.position.addScaledVector(q.v,dt);q.m.rotation.y+=dt*14;if(q.m.position.distanceTo(new THREE.Vector3(Bo.p.x,1,Bo.p.z))<1.8){Bo.hp-=(10+2*(nP()+nQ()))*(Bo.stun>0?2:1);q.t=0;}}
+ for(const q of Bo.proj){q.t-=dt;q.m.position.addScaledVector(q.v,dt);q.m.rotation.y+=dt*14;if(q.m.position.distanceTo(new THREE.Vector3(Bo.p.x,1,Bo.p.z))<1.8){Bo.hp-=(10+2*(nP()+nQ()))*(Bo.stun>0?2:1);q.t=0;}for(const u of Bo.mu)if(q.t>0&&q.m.position.distanceTo(new THREE.Vector3(u.m.position.x,1,u.m.position.z))<1){u.hp-=10+2*(nP()+nQ());q.t=0;}}
  for(let i=Bo.proj.length-1;i>=0;i--)if(Bo.proj[i].t<=0){sceneR.remove(Bo.proj[i].m);Bo.proj.splice(i,1);}
+ /* protocolos (múmias de papel) */
+ Bo.mt-=dt;if(Bo.mt<=0&&Bo.mu.length<3){Bo.mt=9;const m=mum();m.position.set(15,0,1+Math.random()*5);sceneR.add(m);Bo.mu.push({m,hp:20,cd:0});bossMsg('Iara: protocolos! Eles não param de andar.');}
+ for(const u of Bo.mu){const dx=pl.x-u.m.position.x,dz=pl.y-u.m.position.z,l=Math.hypot(dx,dz)||1;u.m.position.x+=dx/l*1.15*dt;u.m.position.z+=dz/l*1.15*dt;u.m.rotation.y=Math.atan2(dx,dz);u.m.position.y=Math.abs(Math.sin(t*6+u.hp))*.03;u.cd-=dt;if(l<.9&&u.cd<=0){u.cd=1.2;hurt(8);}}
+ Bo.mu=Bo.mu.filter(u=>{if(u.hp<=0){sceneR.remove(u.m);return false;}return true;});
  /* escudo */
  if(Bo.pick){if(Bo.pick.visible){Bo.pick.rotation.y+=dt*2;Bo.pick.position.y=.8+Math.sin(t*3)*.1;if(Math.hypot(pl.x-Bo.pick.position.x,pl.y-Bo.pick.position.z)<.9){Bo.sh=1;Bo.pick.visible=false;Bo.pt=16;toast('Escudo pego. Ele absorve um golpe.',2000);}}
   else if(!Bo.sh){Bo.pt-=dt;if(Bo.pt<=0){Bo.pick.position.set(2+Math.random()*12,.8,1+Math.random()*5);Bo.pick.visible=true;}}}
