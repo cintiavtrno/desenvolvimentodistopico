@@ -98,7 +98,6 @@ const CENA=[
  {arquivo:'Gaming_Computer',pos:[5.4,0,0.95], rot:0,   alt:1.6, col:1},
  {arquivo:'Desk_L',         pos:[0.9,0,3.2],  rot:90,  tam:2.2, col:1},
  {arquivo:'Chair',          pos:[2.5,0,2.3],  rot:200, alt:1.0, col:0},
- {arquivo:'Shelves',        pos:[7.4,0,3.2],  rot:-90, alt:2.0, col:1},
  {arquivo:'Ultimaker_3',    pos:[7.1,0,5.6],  rot:-90, alt:1.1, col:1},
  {arquivo:'Locker',         pos:[0.6,0,5.9],  rot:90,  alt:1.9, col:1},
  {arquivo:'Shelves',        pos:[15.4,0,2.0], rot:-90, alt:2.0, col:1},
@@ -269,7 +268,7 @@ const mFaixa=new THREE.MeshStandardMaterial({color:0x100a05,emissive:0xff9a3c,em
  G(0,1,g=>{ad(g,w+T,H,T,w/2,H/2,d+T/2,mParede);ad(g,w,.06,.03,w/2,.3,d-.02,mFaixa,false);});
  G(1,0,g=>{ad(g,T,H,d+T,w+T/2,H/2,d/2,mParede);ad(g,.03,.06,d,w-.02,.3,d/2,mFaixa,false);});}
 {const mm=(w,h,d,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mParede);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;sceneR.add(o);};
- mm(.2,1.1,2.7,PART,.55,1.35);mm(.2,1.1,2.8,PART,.55,5.6);BLK.push([PART-.1,0,.2,2.7],[PART-.1,4.2,.2,2.8]);
+ mm(.2,1.1,2.3,PART,.55,1.15);mm(.2,1.1,2.4,PART,.55,5.8);BLK.push([PART-.1,0,.2,2.3],[PART-.1,4.6,.2,2.4]);
  const fx=new THREE.Mesh(new THREE.BoxGeometry(.05,.05,1.5),mFaixa);fx.position.set(PART,1.12,3.5);sceneR.add(fx);}
 const lamp2=new THREE.PointLight(0xffa860,30,11,2);lamp2.position.set(12,2.6,3.5);sceneR.add(lamp2);
 const tv=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.2,.08),new THREE.MeshStandardMaterial({color:0x061014,emissive:0x00e5d8,emissiveIntensity:.8}));tv.position.set(12.4,1.5,.12);sceneR.add(tv);
@@ -438,7 +437,7 @@ upObj();
 let last=0;function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;update(dt,ts/1000);composer.render();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 $('#go').disabled=false;$('#go').textContent='COMEÇAR';
 $('#go').onclick=()=>{started=true;$('#title').style.display='none';setTimeout(()=>toast('MERIDIANA: Auditoria remota liberada. O painel está atualizado.',5000),400);};
-window.DBG={st,pl,dr,THREE,sceneR,sceneC,camC,camR,enter:entrarFeed,start:()=>$('#go').click(),hot};
+window.DBG={hit,TG,st,pl,dr,THREE,sceneR,sceneC,camC,camR,enter:entrarFeed,start:()=>$('#go').click(),hot};
 })();
 
 </script>
