@@ -347,22 +347,28 @@ async function montarCidade(){
  const geo=async n=>{const g=(await carregar(n)).scene;let m;g.traverse(o=>{if(o.isMesh&&!m)m=o;});return m;};
  const roadM=(await geo('road-straight')),cross=(await geo('road-crossroad'));
  const S=CIDADE.tile,L=CIDADE.limite,av=CIDADE.avenidas;
- const mat=new THREE.MeshStandardMaterial({map:roadM.material.map,color:0xe0e6f4,roughness:.9,emissive:0x0d1424,emissiveIntensity:1});
+ const mat=new THREE.MeshStandardMaterial({map:roadM.material.map,color:0xb4b4bc,roughness:.6,metalness:.1,emissive:0x15151c,emissiveIntensity:1});
  const straightA=[],straightB=[],crossA=[];
  for(const a of av)for(let t=-L;t<=L;t+=S){const onX=av.includes(t);
   if(onX)continue;straightA.push([t,a,0]);straightB.push([a,t,Math.PI/2]);}
  for(const a of av)for(const b of av)crossA.push([a,b,0]);
  const inst=(g,list,mt)=>{const im=new THREE.InstancedMesh(g.geometry,mt,list.length);const M=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(S,S,S);list.forEach(([x,z,r],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),r);M.compose(new THREE.Vector3(x,.02,z),q,s);im.setMatrixAt(i,M);});im.receiveShadow=false;sceneC.add(im);};
  inst(roadM,straightA,mat);inst(roadM,straightB,mat);inst(cross,crossA,mat);
+ {const cal=[];for(const a of av)for(let t=-L;t<=L;t+=S){if(av.includes(t))continue;for(const sd of[-1,1]){cal.push([t,a+sd*5.6,0]);cal.push([a+sd*5.6,t,1]);}}
+  const im=new THREE.InstancedMesh(new THREE.BoxGeometry(S,.28,3.2),new THREE.MeshStandardMaterial({color:0x5c6270,roughness:.95,emissive:0x0c0f16}),cal.length);const M=new THREE.Matrix4(),q=new THREE.Quaternion();
+  cal.forEach(([x,z,r],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),r?Math.PI/2:0);M.compose(new THREE.Vector3(x,.12,z),q,new THREE.Vector3(1,1,1));im.setMatrixAt(i,M);});sceneC.add(im);}
  /* postes de luz e árvores ao longo das avenidas */
  const lampG=await geo('light-square'),poste=[],bulbs=[];
  for(const a of av)for(let t=-L;t<=L;t+=16){for(const sd of[-1,1]){poste.push([t,a+sd*5.2,sd>0?Math.PI:0]);poste.push([a+sd*5.2,t,sd>0?-Math.PI/2:Math.PI/2]);}}
- {const im=new THREE.InstancedMesh(lampG.geometry,new THREE.MeshStandardMaterial({map:lampG.material.map,color:0xdde4f2}),poste.length);const M=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(8,8,8);
-  const bm=new THREE.InstancedMesh(new THREE.SphereGeometry(.45,8,6),new THREE.MeshBasicMaterial({color:0xcffcff}),poste.length);
-  poste.forEach(([x,z,r],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),r);M.compose(new THREE.Vector3(x,0,z),q,s);im.setMatrixAt(i,M);bm.setMatrixAt(i,new THREE.Matrix4().makeTranslation(x+Math.sin(-r)*-1.4,4.9,z+Math.cos(r)*-1.4));});sceneC.add(im,bm);}
- {const n=[];for(const a of av)for(let t=-L;t<=L;t+=12)for(const sd of[-1,1]){n.push([t,a+sd*6.6]);n.push([a+sd*6.6,t]);}
-  const im=new THREE.InstancedMesh(new THREE.ConeGeometry(1.5,4,7),new THREE.MeshStandardMaterial({color:0x14452f,emissive:0x0a3a24,emissiveIntensity:.6}),n.length);
-  n.forEach(([x,z],i)=>im.setMatrixAt(i,new THREE.Matrix4().makeTranslation(x,2.4,z)));sceneC.add(im);}
+ {const im=new THREE.InstancedMesh(lampG.geometry,new THREE.MeshStandardMaterial({map:lampG.material.map,color:0x8a92a4,roughness:.6,metalness:.3}),poste.length);const M=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(4.6,4.6,4.6);
+  const bm=new THREE.InstancedMesh(new THREE.SphereGeometry(.3,8,6),new THREE.MeshBasicMaterial({color:0xcffcff}),poste.length);
+  poste.forEach(([x,z,r],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),r);M.compose(new THREE.Vector3(x,0,z),q,s);im.setMatrixAt(i,M);bm.setMatrixAt(i,new THREE.Matrix4().makeTranslation(x+Math.sin(-r)*-.8,2.85,z+Math.cos(r)*-.8));});sceneC.add(im,bm);
+  const gt=tex((x,w,h)=>{const g=x.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);g.addColorStop(0,'rgba(255,226,170,.3)');g.addColorStop(1,'rgba(255,226,170,0)');x.fillStyle=g;x.fillRect(0,0,w,h);},128,128);
+  const pm=new THREE.InstancedMesh(new THREE.PlaneGeometry(9,9),new THREE.MeshBasicMaterial({map:gt,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),poste.length);
+  poste.forEach(([x,z,r],i)=>{M.compose(new THREE.Vector3(x+Math.sin(-r)*-.8,.34,z+Math.cos(r)*-.8),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2),new THREE.Vector3(1,1,1));pm.setMatrixAt(i,M);});sceneC.add(pm);}
+ {const n=[];for(const a of av)for(let t=-L;t<=L;t+=20)for(const sd of[-1,1]){if(!av.includes(t+10)){n.push([t+4,a+sd*6.8]);n.push([a+sd*6.8,t+4]);}}
+  const tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.26,1.7,6),new THREE.MeshStandardMaterial({color:0x4a3626,roughness:1}),n.length),fo=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.25,1),new THREE.MeshStandardMaterial({color:0x2a7a4a,emissive:0x0b2a1a,emissiveIntensity:.7,roughness:.9}),n.length);const M=new THREE.Matrix4();
+  n.forEach(([x,z],i)=>{const k=.8+((x*7+z*13)%5)/10;M.compose(new THREE.Vector3(x,.85,z),new THREE.Quaternion(),new THREE.Vector3(1,1,1));tr.setMatrixAt(i,M);M.compose(new THREE.Vector3(x,2.5*k,z),new THREE.Quaternion(),new THREE.Vector3(k,k*1.1,k));fo.setMatrixAt(i,M);});sceneC.add(tr,fo);}
  /* prédios: quadras entre avenidas */
  const centros=Array.from({length:14},(_,i)=>-156+24*i),aurora=[[-36,12],[-12,12],[-36,36],[-12,36]];
  for(const cx of centros)for(const cz of centros){const isA=aurora.some(([x,z])=>x===cx&&z===cz);
@@ -383,7 +389,7 @@ async function montarCidade(){
   const w=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.2),acesa?janM:new THREE.MeshBasicMaterial({color:0x14100c}));w.position.set(0,1.8,2.51);g.add(w);
   g.position.set(x,0,z);g.rotation.y=r;g.scale.setScalar(1.6);sceneC.add(g);};
  [[-77,18,.2,0],[-85,20,-.1,0],[-77,30,0,0],[-85,32,.15,0],[-79,42,-.2,0],[-87,44,.1,0]].forEach(c=>casa(c[0],c[1],c[2],c[3]));
- casa(-81,30.5,.05,1);const l17=new THREE.PointLight(0xffb060,60,26,2);l17.position.set(-81,3,34);sceneC.add(l17);
+ casa(-81,30.5,.05,1);const l17=new THREE.PointLight(0xffb060,220,45,2);l17.position.set(-81,3,34);sceneC.add(l17);
  const pole=(await carregar('electricity-pole')).scene;for(const [x,z] of[[-73,24],[-73,38],[-73,52]]){const p=pole.clone(true);p.traverse(o=>{if(o.isMesh)o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:0x8d95a8});});p.scale.setScalar(14);p.position.set(x,0,z);sceneC.add(p);}
  /* ===== tapume ===== */
  const fence=await geo('construction-fence');{const list=[];for(let x=-36;x<=36;x+=3)list.push(x);const im=new THREE.InstancedMesh(fence.geometry,new THREE.MeshStandardMaterial({map:fence.material.map,color:0x9aa3b8}),list.length);const M=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(14,14,14);
