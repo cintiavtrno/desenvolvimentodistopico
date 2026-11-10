@@ -109,7 +109,7 @@ const CENA=[
 ];
 const CAM={zoom:9,dist:34,elev:.82,seguir:6};
 const CIDADE={avenidas:Array.from({length:15},(_,i)=>-168+24*i),tile:8,limite:192};
-const DRONE={x:0,y:55,z:80,yaw:0,pitch:-.5,alcance:70};
+const DRONE={x:0,y:55,z:80,yaw:0,pitch:-.5,alcance:85};
 /* ====================================================================== */
 (async()=>{
 const $=s=>document.querySelector(s);const cv=$('#c');
@@ -348,7 +348,7 @@ async function montarCidade(){
   if(cz===-60&&Math.abs(cx)<=36)continue;/* terreno limpo atrás do tapume */
   if(cx===-84&&cz===36)continue;/* quadra da Casa 17 */
   if(isA){predio(cx-4.5,cz,7,13,32,false);predio(cx+4.5,cz,7,13,32,false);}
-  else{const dist=Math.hypot(cx,cz),alto=(cx>0&&cz<0)||dist<60&&rand()<.4;const w=10+rand()*5,d=10+rand()*5,h=alto?55+rand()*45:(dist>110?14+rand()*26:22+rand()*30);predio(cx,cz,w,d,h,alto||rand()<.5);}}
+  else{const baixo=Math.hypot(cx+84,cz-36)<60||(Math.abs(cx)<=60&&Math.abs(cz+60)<=50);const dist=Math.hypot(cx,cz),alto=!baixo&&(cx>0&&cz<0)||dist<60&&rand()<.4;const w=10+rand()*5,d=10+rand()*5,h=baixo?7+rand()*7:alto?55+rand()*45:(dist>110?14+rand()*26:22+rand()*30);predio(cx,cz,w,d,h,alto||rand()<.5);}}
  /* silhueta distante, para a cidade não acabar numa borda */
  {const n=420,im=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0x1b2744,emissive:0x1a2a50,emissiveIntensity:.5,roughness:.9}),n);const M=new THREE.Matrix4();
   for(let i=0;i<n;i++){const a=rand()*Math.PI*2,r=205+rand()*150,h=20+rand()*70,w=8+rand()*14;M.compose(new THREE.Vector3(Math.cos(a)*r,h/2,Math.sin(a)*r),new THREE.Quaternion(),new THREE.Vector3(w,h,w+rand()*8));im.setMatrixAt(i,M);}sceneC.add(im);}
@@ -360,7 +360,7 @@ async function montarCidade(){
  const casa=(x,z,r,acesa)=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(6,3,5),casaM);b.position.y=1.5;g.add(b);
   const t=new THREE.Mesh(new THREE.CylinderGeometry(0,4.6,2,4,1),tel);t.rotation.y=Math.PI/4;t.scale.set(1.15,1,1.0);t.position.y=4;g.add(t);
   const w=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.2),acesa?janM:new THREE.MeshBasicMaterial({color:0x14100c}));w.position.set(0,1.8,2.51);g.add(w);
-  g.position.set(x,0,z);g.rotation.y=r;sceneC.add(g);};
+  g.position.set(x,0,z);g.rotation.y=r;g.scale.setScalar(1.6);sceneC.add(g);};
  [[-77,18,.2,0],[-85,20,-.1,0],[-77,30,0,0],[-85,32,.15,0],[-79,42,-.2,0],[-87,44,.1,0]].forEach(c=>casa(c[0],c[1],c[2],c[3]));
  casa(-81,30.5,.05,1);const l17=new THREE.PointLight(0xffb060,60,26,2);l17.position.set(-81,3,34);sceneC.add(l17);
  const pole=(await carregar('electricity-pole')).scene;for(const [x,z] of[[-73,24],[-73,38],[-73,52]]){const p=pole.clone(true);p.traverse(o=>{if(o.isMesh)o.material=new THREE.MeshStandardMaterial({map:o.material.map,color:0x8d95a8});});p.scale.setScalar(14);p.position.set(x,0,z);sceneC.add(p);}
@@ -386,8 +386,8 @@ function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'no
   const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;b.style.display=vis?'block':'none';if(!vis)continue;
   b.style.left=((v.x+1)/2*innerWidth)+'px';b.style.top=((1-v.y)/2*innerHeight)+'px';b.className=(d>DRONE.alcance?'far ':'')+(st.p[h.id]?'done':'');
   b.textContent=(st.p[h.id]?'✓ ':d>DRONE.alcance?'➜ ':'● ')+h.nome+(d>DRONE.alcance?' · '+Math.round(d)+' m · clique p/ ir':' · PERTO · clique p/ observar');}}
-function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){const c=[[18,0],[-18,0],[0,18],[0,-18]].sort((a,b)=>Math.hypot(h.pos.x+a[0]-dr.x,h.pos.z+a[1]-dr.z)-Math.hypot(h.pos.x+b[0]-dr.x,h.pos.z+b[1]-dr.z))[0];
-  const x=h.pos.x+c[0],z=h.pos.z+c[1],y=Math.max(40,h.pos.y+40),dx=h.pos.x-x,dz=h.pos.z-z,hz=Math.hypot(dx,dz);dr.go={x,y,z,yaw:Math.atan2(-dx,-dz),pitch:Math.atan2(h.pos.y-y,hz)};toast('Drone a caminho de '+h.nome+'. Quando chegar, clique de novo para observar.',4000);return;}
+function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){const c=[[26,0],[-26,0],[0,26],[0,-26]].sort((a,b)=>Math.hypot(h.pos.x+a[0]-dr.x,h.pos.z+a[1]-dr.z)-Math.hypot(h.pos.x+b[0]-dr.x,h.pos.z+b[1]-dr.z))[0];
+  const x=h.pos.x+c[0],z=h.pos.z+c[1],y=Math.max(62,h.pos.y+55),dx=h.pos.x-x,dz=h.pos.z-z,hz=Math.hypot(dx,dz);dr.go={x,y,z,h,yaw:Math.atan2(-dx,-dz),pitch:Math.max(-1.25,Math.atan2(h.pos.y-y,hz))};toast('Drone indo até '+h.nome+'. Ao chegar, a observação abre sozinha.',4500);return;}
  const p=PISTAS[h.id]||FLAV[h.id];ui(`<h2>${p[0]}</h2><p>${p[1]}</p>`+(PISTAS[h.id]?(st.p[h.id]?'<p class="sm">Já anotado no caderno.</p>':bt('reg',`Anotar no caderno de campo`,h.id)):'')+bt('close','Voltar ao drone'));}
 A.reg=id=>{pista(id);closeUI();};
 
@@ -419,7 +419,7 @@ function update(dt,t){
   const tg=near(),pr=$('#prompt');if(tg&&!uiOpen&&started){pr.style.display='block';pr.innerHTML='<span class="key">E</span>'+tg.l;}else pr.style.display='none';
   lampada.intensity=34+Math.sin(t*23)*.6;
  }else{$('#prompt').style.display='none';
-  if(dr.go){const g=dr.go,k=Math.min(1,dt*1.6);dr.x+=(g.x-dr.x)*k;dr.y+=(g.y-dr.y)*k;dr.z+=(g.z-dr.z)*k;let dy=g.yaw-dr.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));dr.yaw+=dy*k;dr.pitch+=(g.pitch-dr.pitch)*k;if(Math.hypot(g.x-dr.x,g.z-dr.z,g.y-dr.y)<1.5)dr.go=null;if(keys.w||keys.a||keys.s||keys.d||keys.r||keys.f)dr.go=null;}
+  if(dr.go){const g=dr.go,k=Math.min(1,dt*1.6);dr.x+=(g.x-dr.x)*k;dr.y+=(g.y-dr.y)*k;dr.z+=(g.z-dr.z)*k;let dy=g.yaw-dr.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));dr.yaw+=dy*k;dr.pitch+=(g.pitch-dr.pitch)*k;if(Math.hypot(g.x-dr.x,g.z-dr.z,g.y-dr.y)<2){dr.go=null;if(g.h&&g.h.pos.distanceTo(camC.position)<=DRONE.alcance){toast('Chegou: '+g.h.nome+'.',2500);examinar(g.h);}}else if(keys.w||keys.a||keys.s||keys.d||keys.r||keys.f)dr.go=null;}
   if(!uiOpen&&!dr.go){const ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iy=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sp=26*dt;
    dr.x+=(-Math.sin(dr.yaw)*iy+Math.cos(dr.yaw)*ix)*sp;dr.z+=(-Math.cos(dr.yaw)*iy-Math.sin(dr.yaw)*ix)*sp;dr.y=Math.min(150,Math.max(8,dr.y+((keys.r?1:0)-(keys.f?1:0))*sp));}
   dr.x=Math.max(-170,Math.min(170,dr.x));dr.z=Math.max(-170,Math.min(170,dr.z));
