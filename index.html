@@ -109,7 +109,7 @@ const CENA=[
 ];
 const CAM={zoom:9,dist:34,elev:.82,seguir:6};
 const CIDADE={avenidas:Array.from({length:15},(_,i)=>-168+24*i),tile:8,limite:192};
-const DRONE={x:0,y:55,z:80,yaw:0,pitch:-.5,alcance:45};
+const DRONE={x:0,y:55,z:80,yaw:0,pitch:-.5,alcance:70};
 /* ====================================================================== */
 (async()=>{
 const $=s=>document.querySelector(s);const cv=$('#c');
@@ -178,7 +178,7 @@ A.nó=v=>{if(v==='_end'){st.call=1;pista('p6');closeUI();return;}nó(v);};
 A.arquivo=()=>{const ids=Object.keys(PISTAS).filter(k=>st.p[k]);ui(`<h2>Caderno de campo</h2>`+(ids.length?ids.map(k=>`<h3>${PISTAS[k][0]}</h3><p>${PISTAS[k][1]}</p>`).join(''):'<p class="sm">Ainda sem anotações.</p>')+`<p class="sm">${nP()} de 6 observações.</p>`+bt('close','Fechar'));};
 A.armario=()=>ui(`<h2>Armário</h2><p>Casacos, uma caixa de ferramentas, um capacete de vistoria que nunca saiu da prateleira. A visita presencial foi dispensada.</p>`+bt('close','Fechar'));
 A.cama=()=>ui(`<h2>Cama</h2><p>Três dias de prazo e um relatório para assinar. A cidade que você audita fica a 800 km daqui, e você só a conhece pelo painel e pela câmera do drone.</p>`+bt('close','Fechar'));
-A.impressora=()=>{const n=nP();ui(`<h2>Certificado de Conclusão · Moradia</h2>`+call('sis','MERIDIANA','assistente do projeto','Todos os indicadores constam como conformes. Recomendo assinar. Posso emitir o certificado agora.')+
+A.impressora=()=>{const n=nP();ui(`<h2>Certificado de Conclusão · Moradia</h2>`+(st.feed?bt('luta','Atender a campainha (confronto com o Consórcio)','','on'):'')+call('sis','MERIDIANA','assistente do projeto','Todos os indicadores constam como conformes. Recomendo assinar. Posso emitir o certificado agora.')+
  `<p class="sm">Observações no caderno: ${n} de 6.</p>`+bt('dec','Assinar como conforme','c')+bt('dec','Marcar Moradia como pendente','p')+bt('dec','Solicitar vistoria presencial','v')+bt('close','Voltar'));};
 A.dec=v=>{const n=nP();let t='';
  if(v==='p'&&n<3){ui(`<h2>Justificativa insuficiente</h2><p>Uma pendência precisa de pelo menos três observações anexadas. Há ${n}.</p>`+bt('impressora','‹ Voltar'));return;}
@@ -377,12 +377,17 @@ const FLAV={fl:['Torre central','Quase todas as janelas estão acesas e nenhuma 
 const dr={...DRONE};let dragging=null;
 function entrarFeed(){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');toast('Drone no ar. Aproxime-se dos pontos marcados (menos de '+DRONE.alcance+' m) e clique para observar.',6000);}
 function sairFeed(){if(modo!=='feed')return;modo='sala';dockDrone.visible=true;rp.scene=sceneR;rp.camera=camR;$('#feedui').style.display='none';document.body.classList.remove('feed');$('#marks').innerHTML='';}
-function marcadores(){const box=$('#marks');if(!box.children.length)hot.forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
+let lst;function lista(){if(!lst){lst=document.createElement('div');lst.style.cssText='position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto;max-width:300px';$('#feedui').appendChild(lst);
+  hot.forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
+ for(const b of lst.children){const h=hot.find(x=>x.id===b.dataset.id),d=h.pos.distanceTo(camC.position),perto=d<=DRONE.alcance;b.style.borderColor=perto?'#7dff9a':'#00e5d8';b.style.color=st.p[h.id]?'#7a8a9a':perto?'#7dff9a':'#9ff';
+  b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+(st.p[h.id]?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá');}}
+function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';if(!box.children.length)hot.forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
  for(const b of box.children){const h=hot.find(x=>x.id===b.dataset.id),v=h.pos.clone().project(camC),d=h.pos.distanceTo(camC.position);
   const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;b.style.display=vis?'block':'none';if(!vis)continue;
   b.style.left=((v.x+1)/2*innerWidth)+'px';b.style.top=((1-v.y)/2*innerHeight)+'px';b.className=(d>DRONE.alcance?'far ':'')+(st.p[h.id]?'done':'');
-  b.textContent=(st.p[h.id]?'✓ ':'◎ ')+h.nome+' · '+Math.round(d)+' m';}}
-function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){toast('Aproxime o drone: '+Math.round(d)+' m do alvo, o limite é '+DRONE.alcance+' m.');return;}
+  b.textContent=(st.p[h.id]?'✓ ':d>DRONE.alcance?'➜ ':'● ')+h.nome+(d>DRONE.alcance?' · '+Math.round(d)+' m · clique p/ ir':' · PERTO · clique p/ observar');}}
+function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){const c=[[18,0],[-18,0],[0,18],[0,-18]].sort((a,b)=>Math.hypot(h.pos.x+a[0]-dr.x,h.pos.z+a[1]-dr.z)-Math.hypot(h.pos.x+b[0]-dr.x,h.pos.z+b[1]-dr.z))[0];
+  const x=h.pos.x+c[0],z=h.pos.z+c[1],y=Math.max(40,h.pos.y+40),dx=h.pos.x-x,dz=h.pos.z-z,hz=Math.hypot(dx,dz);dr.go={x,y,z,yaw:Math.atan2(-dx,-dz),pitch:Math.atan2(h.pos.y-y,hz)};toast('Drone a caminho de '+h.nome+'. Quando chegar, clique de novo para observar.',4000);return;}
  const p=PISTAS[h.id]||FLAV[h.id];ui(`<h2>${p[0]}</h2><p>${p[1]}</p>`+(PISTAS[h.id]?(st.p[h.id]?'<p class="sm">Já anotado no caderno.</p>':bt('reg',`Anotar no caderno de campo`,h.id)):'')+bt('close','Voltar ao drone'));}
 A.reg=id=>{pista(id);closeUI();};
 
@@ -414,7 +419,8 @@ function update(dt,t){
   const tg=near(),pr=$('#prompt');if(tg&&!uiOpen&&started){pr.style.display='block';pr.innerHTML='<span class="key">E</span>'+tg.l;}else pr.style.display='none';
   lampada.intensity=34+Math.sin(t*23)*.6;
  }else{$('#prompt').style.display='none';
-  if(!uiOpen){const ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iy=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sp=26*dt;
+  if(dr.go){const g=dr.go,k=Math.min(1,dt*1.6);dr.x+=(g.x-dr.x)*k;dr.y+=(g.y-dr.y)*k;dr.z+=(g.z-dr.z)*k;let dy=g.yaw-dr.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));dr.yaw+=dy*k;dr.pitch+=(g.pitch-dr.pitch)*k;if(Math.hypot(g.x-dr.x,g.z-dr.z,g.y-dr.y)<1.5)dr.go=null;if(keys.w||keys.a||keys.s||keys.d||keys.r||keys.f)dr.go=null;}
+  if(!uiOpen&&!dr.go){const ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iy=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sp=26*dt;
    dr.x+=(-Math.sin(dr.yaw)*iy+Math.cos(dr.yaw)*ix)*sp;dr.z+=(-Math.cos(dr.yaw)*iy-Math.sin(dr.yaw)*ix)*sp;dr.y=Math.min(150,Math.max(8,dr.y+((keys.r?1:0)-(keys.f?1:0))*sp));}
   dr.x=Math.max(-170,Math.min(170,dr.x));dr.z=Math.max(-170,Math.min(170,dr.z));
   camC.position.set(dr.x,dr.y,dr.z+Math.sin(t*1.3)*.15);const f=new THREE.Vector3(-Math.sin(dr.yaw)*Math.cos(dr.pitch),Math.sin(dr.pitch),-Math.cos(dr.yaw)*Math.cos(dr.pitch));camC.lookAt(camC.position.clone().add(f));
@@ -424,6 +430,8 @@ function update(dt,t){
 
 /* ================= INICIALIZAÇÃO ================= */
 resize();await montarSala();await jogador();await montarCidade();
+for(const h of hot){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:h.id==='fl'?0x888888:0x00ffe0,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);sceneC.add(bm);}
+
 rp=new RenderPass(sceneR,camR);
 composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:4}));composer.addPass(rp);bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.6,.6,.9);composer.addPass(bloom);composer.addPass(new OutputPass());resize();
 upObj();
