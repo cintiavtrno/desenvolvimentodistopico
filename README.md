@@ -1,6 +1,6 @@
 # MERIDIANO — Auditoria remota de uma cidade concluída
 
-Jogo em um único HTML (Three.js). Você audita, de casa, a cidade inteligente "Meridiano" pela câmera de um drone, e decide o que assinar depois que o estrago já está posto.
+Obra de ficção distópica em um único HTML (Three.js). Meridiano é uma cidade fictícia, criada para pensar o conceito de desenvolvimento depois que o estrago já está posto. Você audita a cidade de casa pela câmera de um drone.
 
 Abra `index.html` no navegador (precisa de internet para carregar o Three.js via CDN).
 
