@@ -406,8 +406,8 @@ async function startFight(){closeUI();if(modo!=='feed')entrarFeed();toast('Drone
 const bar=(h,m,c)=>`<span style="display:inline-block;width:90px;height:8px;background:#10182a;border:1px solid ${c};vertical-align:middle"><i style="display:block;height:100%;width:${Math.max(0,h/m*100)}%;background:${c}"></i></span>`;
 function atira(from,to,vel,tipo,alvo){const m=new THREE.Mesh(bGeo,tipo?bE:bP);m.position.copy(from);sceneC.add(m);F.bolts.push({m,v:to.clone().sub(from).normalize().multiplyScalar(vel),t:3,tipo,alvo,vel});}
 function fightEnd(v){F.on=0;F.hud.style.display='none';for(const e of F.en)sceneC.remove(e.m);for(const b of F.bolts)sceneC.remove(b.m);F.en=[];F.bolts=[];sceneC.remove(F.me);F.me=null;
- if(v){if(lst)lst.style.display='';sairFeed();toast('Os drones do Consórcio caíram. O seu voltou para a base.',6000);if(nP()>=0)st.fim=st.fim||0;upObj();}
- else ui(`<h2 style="color:#ff4fd8">Drone abatido</h2><p>A transmissão cai por alguns segundos e volta com a imagem do Consórcio.</p>`+bt('luta','Tentar de novo','','on')+bt('fugir','Desistir e voltar à sala'));}
+ if(v){if(lst)lst.style.display='';sairFeed();toast('Os drones do Consórcio caíram. A transmissão foi preservada e o seu drone voltou para a base.',6000);if(nP()>=0)st.fim=st.fim||0;upObj();}
+ else ui(`<h2 style="color:#ff4fd8">Drone abatido</h2><p>A transmissão cai por alguns segundos e volta com a imagem do Consórcio.</p>`+bt('lutar','Tentar de novo','','on')+bt('fugir','Desistir e voltar à sala'));}
 A.fugir=()=>{closeUI();if(lst)lst.style.display='';sairFeed();};
 function fightUpdate(dt,t){
  const me=F.me;if(!me)return;const sp=24*dt;
@@ -430,7 +430,8 @@ function fightUpdate(dt,t){
  if(F.en.every(e=>e.hp<=0)&&!F.res){F.res=1;setTimeout(()=>fightEnd(1),600);}
  else if(F.hp<=0&&!F.res){F.res=1;fightEnd(0);}
 }
-A.luta=startFight;
+A.lutar=startFight;
+A.luta=()=>ui(`<h2 style="color:#ff4fd8">Interceptação do Consórcio</h2><p>Quando um drone de auditoria sai da rota aprovada, o Consórcio manda drones de segurança para derrubá-lo e apagar a transmissão. Eles não discutem o que você viu. Se o seu drone cair, a imagem some e o que você filmou fica sem prova.</p><p>Objetivo: derrubar os três drones vermelhos antes que derrubem o seu.</p><h3>Como jogar</h3><p>A / D: mover para os lados · W / S: frente e trás · R / F: subir e descer<br>Espaço ou clique: atirar (o tiro persegue o alvo mais próximo)<br>E: pulso EMP, dano nos três (recarrega em 7 s)<br>Desvie dos tiros laranja. Cada pista no caderno aumenta o dano dos seus tiros.</p>`+bt('lutar','Entrar em combate','','on')+bt('close','Voltar'));
 addEventListener('pointerdown',()=>{if(F.on)keys[' ']=1;});addEventListener('pointerup',()=>{if(F.on)keys[' ']=0;});
 /* ================= LOOP ================= */
 const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started)return;
