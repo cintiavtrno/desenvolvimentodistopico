@@ -65,7 +65,7 @@ body.feed #obj{top:9%}
 <div id="stage">
 <canvas id="c"></canvas>
 <div id="flash"></div>
-<div id="feedui"><div class="rec"><i></i> REC <span id="ts"></span></div><div class="cam">DRONE 01 · MERIDIANO · ALT <span id="alt"></span> m</div><div id="marks"></div><div class="hint">WASD: mover · R / F: altitude · arrastar: girar · Esc: voltar à sala</div></div>
+<div id="feedui"><div class="rec"><i></i> REC <span id="ts"></span></div><div class="cam">DRONE 01 · MERIDIANO · ALT <span id="alt"></span> m</div><div id="marks"></div><div class="hint">WASD mover · setas olhar · R/F altitude · 1 chão · 2 rasante · 3 alto · roda: altitude · H ajuda · Esc: sala</div></div>
 <div id="ui">
   <div id="obj" class="bev"><div id="objin"></div></div>
   <div id="toast" class="bev"></div>
@@ -307,10 +307,21 @@ async function montarSala(){for(const e of CENA){const g=(await carregar(e.arqui
  dockDrone=new THREE.Group();dockDrone.add(d);dockDrone.position.set(6.9,1.5,1.0);sceneR.add(dockDrone);
  const orb=new THREE.PointLight(0x00e5d8,6,3,2);dockDrone.add(orb);}
 let dockDrone,gatoM;
-async function npcs(){const prep=async(n,alt,pos,rot)=>{const g=(await carregar(n)).scene.clone(true);g.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=true;const m=o.material;m.metalness=.15;m.roughness=.75;m.emissive=new THREE.Color(0x0a1420);m.emissiveMap=m.map;m.emissiveIntensity=.7;}});
+const NP=[];
+async function npcs(){const prep=async(n,alt,pos,luz)=>{const g=(await carregar(n)).scene.clone(true);g.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=true;const m=o.material;m.metalness=.1;m.roughness=.8;m.emissive=new THREE.Color(0xffffff);m.emissiveMap=m.map;m.emissiveIntensity=n==='Gato'?.55:.1;if(n==='Iara')m.color=new THREE.Color(0xb59f8c);}});
   g.updateMatrixWorld(true);let b=new THREE.Box3().setFromObject(g),s=b.getSize(new THREE.Vector3());g.scale.multiplyScalar(alt/s.y);g.updateMatrixWorld(true);b.setFromObject(g);const c=b.getCenter(new THREE.Vector3());g.position.set(-c.x,-b.min.y,-c.z);
-  const w=new THREE.Group();w.add(g);w.rotation.y=THREE.MathUtils.degToRad(rot);w.position.set(...pos);sceneR.add(w);return w;};
- await prep('Iara',1.62,[10.4,0,2.3],90);gatoM=await prep('Gato',.42,[13.3,0,3.2],-60);BLK.push([10.05,1.95,.7,.7]);}
+  const w=new THREE.Group();w.add(g);const l=new THREE.PointLight(luz,n==='Gato'?9:3,5,2);l.position.set(0,1.6,0);w.add(l);w.position.set(...pos);sceneR.add(w);return w;};
+ const iara=await prep('Iara',1.62,[10.4,0,2.3],0xffd9a0),gato=await prep('Gato',.62,[13.3,0,3.2],0x7dffea);gatoM=gato;
+ NP.push({g:iara,id:'iara',spd:.55,pts:[[10.4,2.2],[12.8,2.5],[14.2,3.0],[12.2,3.4],[9.8,3.4]],i:0,wait:1,g2:0,h:0,tgy:.0},{g:gato,id:'gato',spd:1.5,pts:[[13.3,3.2],[10.6,2.2],[14.0,2.0],[12.0,3.6],[10.0,3.3]],i:0,wait:.5,g2:0,h:0,seg:1});}
+function npcUpd(dt,t){for(const n of NP){const p=n.g.position,pl2=Math.hypot(pl.x-p.x,pl.y-p.z);let mov=0,tx,tz;
+  if(uiOpen&&pl2<3.2){tx=pl.x;tz=pl.y;}
+  else if(n.seg&&pl2<4&&pl2>1.3){tx=pl.x;tz=pl.y;const dx=tx-p.x,dz=tz-p.z,l=Math.hypot(dx,dz);p.x+=dx/l*n.spd*dt;p.z+=dz/l*n.spd*dt;mov=1;}
+  else if(n.wait>0)n.wait-=dt;
+  else{const q=n.pts[n.i];tx=q[0];tz=q[1];const dx=tx-p.x,dz=tz-p.z,l=Math.hypot(dx,dz);if(l<.15){n.wait=1.5+Math.random()*3;n.i=Math.floor(Math.random()*n.pts.length);}else{p.x+=dx/l*n.spd*dt;p.z+=dz/l*n.spd*dt;mov=1;}}
+  if(tx!==undefined){const hd=Math.atan2(tx-p.x,tz-p.z);let dh=hd-n.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));n.h+=dh*Math.min(1,dt*5);}
+  n.g.rotation.y=n.h;n.g2+=dt*(mov?(n.seg?11:7):2);
+  n.g.children[0].position.y=0;p.y=mov?Math.abs(Math.sin(n.g2))*(n.seg?.04:.035):Math.sin(n.g2)*.008;n.g.rotation.z=mov?Math.sin(n.g2)*(n.seg?.05:.03):0;
+  const T=TG.find(x=>x.id===n.id);if(T){T.x=p.x;T.y=p.z+(n.seg?.5:.6);}}}
 const hit=(x,y)=>{const m=.28;if(x<m||y<m||x>SALA.w-m||y>SALA.d-m)return true;for(const[a,b,w,d]of BLK)if(x>a-.22&&x<a+w+.22&&y>b-.22&&y<b+d+.22)return true;return false;};
 
 /* ================= JOGADOR ================= */
@@ -382,15 +393,15 @@ async function montarCidade(){
  const bus=new THREE.InstancedMesh(new THREE.BoxGeometry(3,2,8),new THREE.MeshStandardMaterial({color:0x1c2638,emissive:0x00e5d8,emissiveIntensity:.5}),6);sceneC.userData.bus=bus;sceneC.add(bus);
  /* pontos de observação */
  hot.push({id:'p1',pos:new THREE.Vector3(-24,26,24),nome:'Quadra Aurora'},{id:'p2',pos:new THREE.Vector3(-81,8,31),nome:'Casa 17'},{id:'p3',pos:new THREE.Vector3(0,9,-61),nome:'Tapume'},{id:'fl',pos:new THREE.Vector3(24,70,-24),nome:'Torre central'});}
-const FLAV={fl:['Torre central','Quase todas as janelas estão acesas e nenhuma silhueta aparece nelas. Segundo o painel, são escritórios de fundos de investimento.']};
+const FLAV={fl:['Torre central','Quase todas as janelas estão acesas e nenhuma silhueta aparece nelas. Segundo o painel, são escritórios de fundos de investimento. Esta observação é só de contexto e não entra no caderno.']};
 /* ================= DRONE ================= */
 const dr={...DRONE};let dragging=null;
-function entrarFeed(){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');toast('Drone no ar. Aproxime-se dos pontos marcados (menos de '+DRONE.alcance+' m) e clique para observar.',6000);}
+function entrarFeed(sem){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');if(!sem&&!st.dv){st.dv=1;A.ajudaD();}else if(!sem)toast('Drone no ar. H: ajuda de controles.',4000);}
 function sairFeed(){if(modo!=='feed')return;modo='sala';dockDrone.visible=true;rp.scene=sceneR;rp.camera=camR;$('#feedui').style.display='none';document.body.classList.remove('feed');$('#marks').innerHTML='';}
 let lst;function lista(){if(!lst){lst=document.createElement('div');lst.style.cssText='position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto;max-width:300px';$('#feedui').appendChild(lst);
   hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
  for(const b of lst.children){const h=hot.find(x=>x.id===b.dataset.id),d=h.pos.distanceTo(camC.position),perto=d<=DRONE.alcance;b.style.borderColor=perto?'#7dff9a':'#00e5d8';b.style.color=(st.p[h.id]||st.q[h.id])?'#7a8a9a':perto?'#7dff9a':'#9ff';
-  b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+((st.p[h.id]||st.q[h.id])?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá');}}
+  b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+((st.p[h.id]||st.q[h.id])?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá')+(h.id==='fl'?' (contexto)':'');}}
 function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';for(const h of hot)if(h.beam)h.beam.visible=h.f===(st.f2?2:1);
  if(!box.children.length)hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
  for(const b of box.children){const h=hot.find(x=>x.id===b.dataset.id),v=h.pos.clone().project(camC),d=h.pos.distanceTo(camC.position);
@@ -408,7 +419,7 @@ const bGeo=new THREE.SphereGeometry(.7,8,6),bP=new THREE.MeshBasicMaterial({colo
 async function droneMesh(esc,cor){const d=(await carregar('Drone')).scene.clone(true);d.traverse(o=>{if(o.isMesh){o.material=o.material.clone();o.material.emissive=new THREE.Color(cor);o.material.emissiveIntensity=.55;}});
  d.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(d),s=b.getSize(new THREE.Vector3());d.scale.multiplyScalar(esc/Math.max(s.x,s.z));d.updateMatrixWorld(true);const c=new THREE.Box3().setFromObject(d).getCenter(new THREE.Vector3());d.position.sub(c);
  const g=new THREE.Group();g.add(d);const l=new THREE.PointLight(cor,6,14,2);g.add(l);sceneC.add(g);return g;}
-async function startFight(){closeUI();if(modo!=='feed')entrarFeed();toast('Drones de segurança do Consórcio interceptaram o seu. Espaço ou clique: disparar · A/D/W/S/R/F: desviar · E: pulso EMP.',7000);
+async function startFight(){closeUI();if(modo!=='feed')entrarFeed(1);toast('Drones de segurança do Consórcio interceptaram o seu. Espaço ou clique: disparar · A/D/W/S/R/F: desviar · E: pulso EMP.',7000);
  if(lst)lst.style.display='none';$('#marks').style.display='none';
  for(const e of F.en)sceneC.remove(e.m);for(const b of F.bolts)sceneC.remove(b.m);F.en=[];F.bolts=[];if(F.me)sceneC.remove(F.me);
  F.me=await droneMesh(3.2,0x00e5d8);F.P.copy(F.C);F.hp=100;F.cd=0;F.emp=0;F.fl=0;F.res=0;
@@ -508,6 +519,8 @@ function bossUpdate(dt,t){
  else if(Bo.ph<=0&&!Bo.res){Bo.res=1;bossEnd(0);}}
 
 /* ===== FASE 2 · TRABALHO E RENDA ===== */
+A.ajuda=()=>ui(`<h2>Como jogar</h2><h3>Andar e olhar</h3><p>WASD ou setas: andar · Q / R: girar a câmera · Z / X: inclinar · roda do mouse ou + / −: zoom · C: câmera padrão · H: abrir esta ajuda.</p><h3>Interagir</h3><p>Chegue perto de um objeto até aparecer "E ..." embaixo da tela e aperte E.</p><h3>O que cada coisa faz</h3><p><b>Termo de Conclusão</b> (mesa à esquerda): o que você foi contratada para assinar.<br><b>Painel de indicadores</b>: o que a cidade diz de si mesma.<br><b>Terminal do drone</b> (mesa do fundo): lança o drone sobre Meridiano.<br><b>Caderno de campo</b>: guarda tudo que você registra pelo drone.<br><b>Certificado de conclusão</b> (impressora no canto): onde você assina, marca como pendente ou pede vistoria. Também é de lá que sai o confronto com o Consórcio, depois que você lança o drone.<br><b>Armário e cama</b>: coisas da casa. <b>Iara e Bit</b>, na sala ao lado, ajudam com dicas e avisos.</p><h3>Ordem sugerida</h3><p>Termo → Painel → Terminal (drone) → observar os alvos → Caderno → Certificado.</p>`+bt('close','Entendi'));
+A.ajudaD=()=>ui(`<h2>Controles do drone</h2><p>WASD: mover · setas: olhar para os lados e para cima ou baixo · R / F ou roda do mouse: subir e descer · 1: rente ao chão · 2: voo rasante · 3: visão alta · arrastar o mouse: girar · H: esta ajuda · Esc: voltar à sala.</p><h3>Como observar</h3><p>A lista no canto superior direito mostra os alvos. Clique em um nome: o drone voa sozinho até lá e abre a observação. Verde quer dizer que o alvo está perto. Feixes de luz no céu marcam onde cada alvo está. Em cada observação, aperte "Anotar no caderno".</p>`+bt('close','Entendi'));
 A.fase2=()=>{st.f2=1;st.q={};st.pn2=0;st.feed2=0;st.fim2=0;OB.length=0;OB.push(['painel','Conferir Trabalho e renda no painel',()=>st.pn2,'painel'],['feed','Lançar o drone no terminal',()=>st.feed2,'terminal'],['pistas','Reunir observações',()=>nQ()>=4,'arquivo'],['fim','Decidir no certificado',()=>st.fim2,'impressora']);
  if(lst){lst.remove();lst=null;}$('#marks').innerHTML='';upObj();ui(`<h2>Indicador 2 · Trabalho e renda</h2>`+call('sis','MERIDIANA','assistente do projeto','O indicador de Trabalho e renda está conforme: 11.400 postos criados contra uma meta de 10.000. Posso emitir o certificado quando quiser.')+`<p class="sm">O mesmo drone, uma segunda pergunta: quem ocupa esses postos?</p>`+bt('close','Começar a auditoria'));};
 const painel1=A.painel;A.painel=()=>{if(!st.f2)return painel1();st.pn2=1;upObj();ui(`<h2>Painel de indicadores · Trabalho e renda</h2><table><tr><th>Indicador</th><th>Meta</th><th>Resultado</th><th></th></tr><tr><td>Postos de trabalho criados</td><td>10.000</td><td>11.400</td><td class="ok">conforme</td></tr><tr><td>Renda média</td><td>+10%</td><td>+18%</td><td class="ok">conforme</td></tr><tr><td>Desemprego</td><td>menor que 6%</td><td>4,1%</td><td class="ok">conforme</td></tr></table>`+bt('det2','Detalhar postos de trabalho')+bt('close','Sair'));};
@@ -521,14 +534,17 @@ A.dec2=v=>{const n=nQ();
   v:'O pedido de vistoria cita o filtro de endereço. A coordenação pede nova autorização e o painel de vagas ganha uma nota de rodapé.'}[v];
  st.fim2=1;upObj();ui(`<h2 style="color:#ffb13b">Fase 2 concluída</h2><p>${t}</p><p class="sm">Próximo indicador: Participação.</p>`+(v==='c'?'':bt('boss','Atender a porta de serviço','','on'))+bt('close','Continuar na sala'));};
 /* ================= LOOP ================= */
+const dicaEl=document.createElement('div');dicaEl.className='sm';dicaEl.style.cssText='position:fixed;left:12px;bottom:8px;z-index:4;color:#7fb;opacity:.8;font-size:.72em;pointer-events:none';document.body.appendChild(dicaEl);
 const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started)return;
  if(k==='escape'){if(uiOpen&&!F.on)closeUI();else if(modo==='feed'&&!F.on)sairFeed();}
- if(modo==='sala'&&!uiOpen){if((k==='e'||k==='enter'||k===' ')&&!Bo.on)interact();if(k==='q')camAT-=Math.PI/2;if(k==='r')camAT+=Math.PI/2;}});
+ if(modo==='sala'&&!uiOpen){if((k==='e'||k==='enter'||k===' ')&&!Bo.on)interact();if(k==='q')camAT-=Math.PI/2;if(k==='r')camAT+=Math.PI/2;if(k==='z')CAM.elev=Math.max(.25,CAM.elev-.15);if(k==='x')CAM.elev=Math.min(1.7,CAM.elev+.15);if(k==='c'){CAM.elev=.82;camAT=Math.PI/4;CAM.zoom=9;resize();}if(k==='+'||k==='='){CAM.zoom=Math.max(5,CAM.zoom*.9);resize();}if(k==='-'){CAM.zoom=Math.min(16,CAM.zoom*1.1);resize();}}
+ if(modo==='feed'&&!uiOpen&&!F.on){const pr={'1':[3,-.04],'2':[14,-.3],'3':[70,-1.0]}[k];if(pr){dr.go=null;dr.y=pr[0];dr.pitch=pr[1];toast({'1':'Visão rente ao chão','2':'Voo rasante','3':'Visão alta'}[k],1500);}}
+ if(k==='h'&&!uiOpen&&!F.on&&!Bo.on)(modo==='feed'?A.ajudaD:A.ajuda)();});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0;});addEventListener('blur',()=>{for(const k in keys)keys[k]=0;});
 cv.addEventListener('pointerdown',e=>{if(started&&!uiOpen){dragging=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);}});addEventListener('pointerup',()=>dragging=null);
 addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-dragging[0],dy=e.clientY-dragging[1];dragging=[e.clientX,e.clientY];
- if(modo==='feed'){dr.yaw-=dx*.005;dr.pitch=Math.min(-.1,Math.max(-1.3,dr.pitch-dy*.004));}else{camAT+=dx*.008;camA=camAT;CAM.elev=Math.min(1.7,Math.max(.4,CAM.elev+dy*.004));}});
-cv.addEventListener('wheel',e=>{e.preventDefault();if(modo==='sala'){CAM.zoom=Math.min(16,Math.max(5,CAM.zoom*(1+Math.sign(e.deltaY)*.08)));resize();}},{passive:false});
+ if(modo==='feed'){dr.yaw-=dx*.005;dr.pitch=Math.min(.6,Math.max(-1.5,dr.pitch-dy*.004));}else{camAT+=dx*.008;camA=camAT;CAM.elev=Math.min(1.7,Math.max(.4,CAM.elev+dy*.004));}});
+cv.addEventListener('wheel',e=>{e.preventDefault();if(modo==='sala'){CAM.zoom=Math.min(16,Math.max(5,CAM.zoom*(1+Math.sign(e.deltaY)*.08)));resize();}else if(modo==='feed'&&!F.on){dr.go=null;dr.y=Math.min(150,Math.max(2.5,dr.y+Math.sign(e.deltaY)*4));}},{passive:false});
 const near=()=>TG.find(t=>Math.hypot(pl.x-t.x,pl.y-t.y)<1.25);
 function interact(){const t=near();if(t&&A[t.id])A[t.id]();}
 const camP=new THREE.Vector3(4,0,3.5);let camA=Math.PI/4,camAT=Math.PI/4;
@@ -548,13 +564,15 @@ function update(dt,t){
   const tg=near(),pr=$('#prompt');if(tg&&!uiOpen&&started){pr.style.display='block';pr.innerHTML='<span class="key">E</span>'+tg.l;}else pr.style.display='none';
   lampada.intensity=34+Math.sin(t*23)*.6;
   if(Bo.on)bossUpdate(dt,t);
-  if(gatoM)gatoM.position.y=Math.sin(t*2.2)*.02;
- }else{$('#prompt').style.display='none';
+  {const d=Bo.on?'WASD mover · Espaço jogar página':'WASD mover · E interagir · Q/R girar · Z/X inclinar · C câmera padrão · roda: zoom · H ajuda';if(dicaEl.textContent!==d)dicaEl.textContent=d;}
+  npcUpd(dt,t);
+   }else{$('#prompt').style.display='none';
   if(F.on){fightUpdate(dt,t);return;}
   if(dr.go){const g=dr.go,k=Math.min(1,dt*1.6);dr.x+=(g.x-dr.x)*k;dr.y+=(g.y-dr.y)*k;dr.z+=(g.z-dr.z)*k;let dy=g.yaw-dr.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));dr.yaw+=dy*k;dr.pitch+=(g.pitch-dr.pitch)*k;if(Math.hypot(g.x-dr.x,g.z-dr.z,g.y-dr.y)<2){dr.go=null;if(g.h&&g.h.pos.distanceTo(camC.position)<=DRONE.alcance){toast('Chegou: '+g.h.nome+'.',2500);examinar(g.h);}}else if(keys.w||keys.a||keys.s||keys.d||keys.r||keys.f)dr.go=null;}
-  if(!uiOpen&&!dr.go){const ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iy=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),sp=26*dt;
-   dr.x+=(-Math.sin(dr.yaw)*iy+Math.cos(dr.yaw)*ix)*sp;dr.z+=(-Math.cos(dr.yaw)*iy-Math.sin(dr.yaw)*ix)*sp;dr.y=Math.min(150,Math.max(8,dr.y+((keys.r?1:0)-(keys.f?1:0))*sp));}
+  if(!uiOpen&&!dr.go){const ix=(keys.d?1:0)-(keys.a?1:0),iy=(keys.w?1:0)-(keys.s?1:0),sp=26*dt;dr.yaw+=((keys.arrowleft?1:0)-(keys.arrowright?1:0))*1.6*dt;dr.pitch=Math.min(.6,Math.max(-1.5,dr.pitch+((keys.arrowup?1:0)-(keys.arrowdown?1:0))*1.2*dt));
+   dr.x+=(-Math.sin(dr.yaw)*iy+Math.cos(dr.yaw)*ix)*sp;dr.z+=(-Math.cos(dr.yaw)*iy-Math.sin(dr.yaw)*ix)*sp;dr.y=Math.min(150,Math.max(2.5,dr.y+((keys.r?1:0)-(keys.f?1:0))*sp));}
   dr.x=Math.max(-170,Math.min(170,dr.x));dr.z=Math.max(-170,Math.min(170,dr.z));
+  {const d='';if(dicaEl.textContent!==d)dicaEl.textContent=d;}
   camC.position.set(dr.x,dr.y,dr.z+Math.sin(t*1.3)*.15);const f=new THREE.Vector3(-Math.sin(dr.yaw)*Math.cos(dr.pitch),Math.sin(dr.pitch),-Math.cos(dr.yaw)*Math.cos(dr.pitch));camC.lookAt(camC.position.clone().add(f));
   const bus=sceneC.userData.bus;if(bus){const av=CIDADE.avenidas;for(let i=0;i<6;i++){const a=av[(i*3+2)%av.length],p=((t*(6+i)+i*37)%360)-180;const alongX=i%2===0;tmpQ.setFromAxisAngle(new THREE.Vector3(0,1,0),alongX?Math.PI/2:0);tmpM.compose(new THREE.Vector3(alongX?p:a+2,1.2,alongX?a+2:p),tmpQ,tmpS);bus.setMatrixAt(i,tmpM);}bus.instanceMatrix.needsUpdate=true;}
   {const bk=sceneC.userData.bike,q2=sceneC.userData.q2;if(bk){const z=((t*6)%320)-160;bk.position.set(-24,1.4,z);if(q2)q2.pos.set(-24,4,z);bk.visible=!!st.f2;}}
@@ -581,7 +599,7 @@ composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,inne
 upObj();
 let last=0;function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;update(dt,ts/1000);composer.render();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 $('#go').disabled=false;$('#go').textContent='COMEÇAR';
-$('#go').onclick=()=>{started=true;$('#title').style.display='none';setTimeout(()=>toast('MERIDIANA: Auditoria remota liberada. O painel está atualizado.',5000),400);};
+$('#go').onclick=()=>{started=true;$('#title').style.display='none';setTimeout(()=>A.ajuda(),300);};
 window.DBG={bu:bossUpdate,Bo,startBoss,fu:fightUpdate,keys,F,hit,TG,st,pl,dr,THREE,sceneR,sceneC,camC,camR,enter:entrarFeed,start:()=>$('#go').click(),hot};
 })();
 
