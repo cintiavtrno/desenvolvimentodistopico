@@ -128,7 +128,7 @@ function portrait(who){const c=document.createElement('canvas');c.width=c.height
 const PORT={dilson:portrait('dilson'),sis:portrait('sis')};
 
 /* ---------- estado e interface ---------- */
-const st={termo:0,painel:0,feed:0,call:0,p:{},fim:0};
+const st={termo:0,painel:0,feed:0,call:0,p:{},fim:0,q:{},f2:0,pn2:0,feed2:0,fim2:0};
 const PISTAS={
  p1:['Quadra Aurora','A maioria das janelas está apagada e o medidor de água da calçada marca zero em quase toda a quadra.'],
  p2:['Casa 17','Uma casa baixa, janela acesa, fora do traçado das ruas novas. O número foi pintado à mão no portão e não existe no cadastro do Consórcio.'],
@@ -137,6 +137,12 @@ const PISTAS={
  p5:['Laudo de risco','O laudo que justificou as remoções foi assinado pela engenharia do Consórcio. Não há revisão independente anexada.'],
  p6:['Limpeza de base','Em 2009 havia 4.212 famílias no cadastro. Hoje constam 612 reassentadas e nenhum registro de saída: 3.600 famílias sumiram da base sem terem sido removidas no papel.']};
 const nP=()=>Object.keys(st.p).length;
+const PQ={
+ q1:['Centro de distribuição','Galpão aceso 24 horas. Na entrada, a escala do dia lista 38 pessoas. As esteiras e os braços mecânicos funcionam com 2.100 robôs.'],
+ q2:['Entregador','Um entregador cruza a cidade numa bicicleta elétrica alugada pelo aplicativo. Sai da periferia de madrugada, passa três horas no trajeto e termina o turno sem entrar em nenhuma das torres acesas. A rota passa a 400 m da Casa 17.'],
+ q3:['Portão de serviço','Uma fila de pessoas entra às 3h12 pela porta de serviço da Torre Central para limpar os andares. Nenhuma passa pela catraca principal. O painel conta essas vagas como "terceirizadas externas".'],
+ q4:['Painel de vagas','O painel de vagas anuncia 11.400 postos abertos. Em letra miúda: "exige comprovante de endereço no cadastro oficial". Quem foi apagado do cadastro na limpeza de base não consegue se candidatar.']};
+const nQ=()=>Object.keys(st.q).length;
 const pw=$('#panel'),pn=$('#pin');let uiOpen=false,started=false,modo='sala';
 function ui(h){pn.innerHTML=h;pw.style.display='block';uiOpen=true;pn.scrollTop=0;}
 function closeUI(){pw.style.display='none';uiOpen=false;pn.innerHTML='';}
@@ -144,13 +150,13 @@ let tt;function toast(m,ms=4500){const e=$('#toast');e.textContent=m;e.style.dis
 const A={close:closeUI};pn.onclick=e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b.dataset.v);};
 const bt=(a,l,v='',x='')=>`<button class="btn ${x}" data-a="${a}" data-v="${v}">${l}</button>`;
 const call=(who,nome,papel,txt)=>`<div class="call"><div class="vid"><img src="${PORT[who]}"><span class="live">● AO VIVO</span></div><div class="tx"><b>${nome}</b><small>${papel}</small><p>${txt}</p></div></div>`;
-function pista(id){if(st.p[id])return false;st.p[id]=1;upObj();toast('Anotado no caderno de campo: '+PISTAS[id][0]+'.');return true;}
+function pista(id){const q=PQ[id],S=q?st.q:st.p;if(S[id])return false;S[id]=1;upObj();toast('Anotado no caderno de campo: '+(q||PISTAS[id])[0]+'.');return true;}
 
 /* ---------- objetivos ---------- */
 const OB=[['termo','Ler o Termo de Conclusão',()=>st.termo,'termo'],['painel','Conferir o painel de indicadores',()=>st.painel,'painel'],
  ['feed','Lançar o drone no terminal',()=>st.feed,'terminal'],['pistas','Reunir observações ('+nP()+'/6)',()=>nP()>=6,'arquivo'],['fim','Decidir no certificado',()=>st.fim,'impressora']];
 function nextT(){const o=OB.find(o=>!o[2]());return o?TG.find(t=>t.id===o[3]):null;}
-function upObj(){$('#objin').innerHTML='<h4>Fase 1 · Moradia</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?'Reunir observações ('+nP()+'/6)':o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
+function upObj(){$('#objin').innerHTML='<h4>'+(st.f2?'Fase 2 · Trabalho e renda':'Fase 1 · Moradia')+'</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?'Reunir observações ('+(st.f2?nQ()+'/4':nP()+'/6')+')':o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
 
 /* ---------- textos e menus ---------- */
 const TG=[{id:'termo',x:1.9,y:3.2,l:'Ler o Termo de Conclusão'},{id:'painel',x:2.4,y:1.9,l:'Abrir o painel de indicadores'},{id:'terminal',x:5.4,y:1.9,l:'Usar o terminal do drone'},
@@ -166,8 +172,8 @@ A.pmor=()=>{const livre=st.p.p1||st.p.p2||st.p.p3;
 A.filtro=()=>{pista('p4');A.pmor();};
 A.plaudo=()=>{if(!st.p.p3){ui(`<h2>Laudos de risco</h2><p>Laudo não localizado. A busca exige o número de um anexo de referência.</p>`+bt('painel','‹ Voltar'));return;}
  pista('p5');ui(`<h2>Laudo de risco nº 0338</h2><p>Área reassentada: <i>"risco de desabamento, remoção recomendada."</i></p><p>Emitente: Engenharia do Consórcio Meridiano.<br>Revisão independente: <span class="bad">não anexada</span>.</p><p class="sm">Quem recomendou a remoção é quem recebeu o terreno.</p>`+bt('painel','‹ Voltar'));};
-A.terminal=()=>{ui(`<h2>Terminal do drone</h2><p class="sm">Drone 01 na base. Bateria 100%. Sinal estável.</p>`+bt('lancar','Lançar o drone')+(st.p.p2&&!st.call?bt('atender','Atender chamada de número desconhecido','','on'):'')+bt('close','Sair'));};
-A.lancar=()=>{closeUI();st.feed=1;upObj();entrarFeed();};
+A.terminal=()=>{ui(`<h2>Terminal do drone</h2><p class="sm">Drone 01 na base. Bateria 100%. Sinal estável.</p>`+bt('lancar','Lançar o drone')+(st.fim&&!st.f2?bt('fase2','Abrir o indicador: Trabalho e renda','','on'):'')+(st.p.p2&&!st.call?bt('atender','Atender chamada de número desconhecido','','on'):'')+bt('close','Sair'));};
+A.lancar=()=>{closeUI();st.feed=1;if(st.f2)st.feed2=1;upObj();entrarFeed();};
 const DL={'0':{t:'Boa noite. Vi o drone parado na viela dos Fundos. Eu moro na 17. Só quero saber se alguém vai olhar isso de verdade ou se é mais um visto.',c:[['Quem é você?','1'],['Estou olhando. Pode contar.','2']]},
  '1':{t:'Dilson. Fui eletricista da obra e depois fiquei sem lugar. A casa era do meu pai. Quando mediram a rua, a nossa ficou fora do mapa.',c:[['E o resto da vizinhança?','2']]},
  '2':{t:'Eram umas quatro mil famílias. Quando foram embora o sistema não registrou saída. Aqui chamam isso de limpeza de base: o cadastro velho some e o novo começa do zero. Sem registro antigo, ninguém foi removido.',c:[['Dá para provar?','3']]},
@@ -175,7 +181,7 @@ const DL={'0':{t:'Boa noite. Vi o drone parado na viela dos Fundos. Eu moro na 1
 A.atender=()=>nó('0');
 function nó(id){const n=DL[id];ui(call('dilson','Dilson','morador da Casa 17',n.t)+n.c.map(c=>bt('nó',c[0],c[1])).join(''));}
 A.nó=v=>{if(v==='_end'){st.call=1;pista('p6');closeUI();return;}nó(v);};
-A.arquivo=()=>{const ids=Object.keys(PISTAS).filter(k=>st.p[k]);ui(`<h2>Caderno de campo</h2>`+(ids.length?ids.map(k=>`<h3>${PISTAS[k][0]}</h3><p>${PISTAS[k][1]}</p>`).join(''):'<p class="sm">Ainda sem anotações.</p>')+`<p class="sm">${nP()} de 6 observações.</p>`+bt('close','Fechar'));};
+A.arquivo=()=>{const SRC=st.f2?PQ:PISTAS,SS=st.f2?st.q:st.p,ids=Object.keys(SRC).filter(k=>SS[k]);ui(`<h2>Caderno de campo</h2>`+(ids.length?ids.map(k=>`<h3>${SRC[k][0]}</h3><p>${SRC[k][1]}</p>`).join(''):'<p class="sm">Ainda sem anotações.</p>')+`<p class="sm">${ids.length} de ${st.f2?4:6} observações.</p>`+bt('close','Fechar'));};
 A.armario=()=>ui(`<h2>Armário</h2><p>Casacos, uma caixa de ferramentas, um capacete de vistoria que nunca saiu da prateleira. A visita presencial foi dispensada.</p>`+bt('close','Fechar'));
 A.cama=()=>ui(`<h2>Cama</h2><p>Três dias de prazo e um relatório para assinar. A cidade que você audita fica a 800 km daqui, e você só a conhece pelo painel e pela câmera do drone.</p>`+bt('close','Fechar'));
 A.impressora=()=>{const n=nP();ui(`<h2>Certificado de Conclusão · Moradia</h2>`+(st.feed?bt('luta','Atender a campainha (confronto com o Consórcio)','','on'):'')+call('sis','MERIDIANA','assistente do projeto','Todos os indicadores constam como conformes. Recomendo assinar. Posso emitir o certificado agora.')+
@@ -378,17 +384,18 @@ const dr={...DRONE};let dragging=null;
 function entrarFeed(){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.camera=camC;$('#feedui').style.display='block';document.body.classList.add('feed');toast('Drone no ar. Aproxime-se dos pontos marcados (menos de '+DRONE.alcance+' m) e clique para observar.',6000);}
 function sairFeed(){if(modo!=='feed')return;modo='sala';dockDrone.visible=true;rp.scene=sceneR;rp.camera=camR;$('#feedui').style.display='none';document.body.classList.remove('feed');$('#marks').innerHTML='';}
 let lst;function lista(){if(!lst){lst=document.createElement('div');lst.style.cssText='position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto;max-width:300px';$('#feedui').appendChild(lst);
-  hot.forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
- for(const b of lst.children){const h=hot.find(x=>x.id===b.dataset.id),d=h.pos.distanceTo(camC.position),perto=d<=DRONE.alcance;b.style.borderColor=perto?'#7dff9a':'#00e5d8';b.style.color=st.p[h.id]?'#7a8a9a':perto?'#7dff9a':'#9ff';
-  b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+(st.p[h.id]?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá');}}
-function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';if(!box.children.length)hot.forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
+  hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
+ for(const b of lst.children){const h=hot.find(x=>x.id===b.dataset.id),d=h.pos.distanceTo(camC.position),perto=d<=DRONE.alcance;b.style.borderColor=perto?'#7dff9a':'#00e5d8';b.style.color=(st.p[h.id]||st.q[h.id])?'#7a8a9a':perto?'#7dff9a':'#9ff';
+  b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+((st.p[h.id]||st.q[h.id])?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá');}}
+function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';for(const h of hot)if(h.beam)h.beam.visible=h.f===(st.f2?2:1);
+ if(!box.children.length)hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
  for(const b of box.children){const h=hot.find(x=>x.id===b.dataset.id),v=h.pos.clone().project(camC),d=h.pos.distanceTo(camC.position);
   const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;b.style.display=vis?'block':'none';if(!vis)continue;
-  b.style.left=((v.x+1)/2*innerWidth)+'px';b.style.top=((1-v.y)/2*innerHeight)+'px';b.className=(d>DRONE.alcance?'far ':'')+(st.p[h.id]?'done':'');
-  b.textContent=(st.p[h.id]?'✓ ':d>DRONE.alcance?'➜ ':'● ')+h.nome+(d>DRONE.alcance?' · '+Math.round(d)+' m · clique p/ ir':' · PERTO · clique p/ observar');}}
+  b.style.left=((v.x+1)/2*innerWidth)+'px';b.style.top=((1-v.y)/2*innerHeight)+'px';b.className=(d>DRONE.alcance?'far ':'')+((st.p[h.id]||st.q[h.id])?'done':'');
+  b.textContent=((st.p[h.id]||st.q[h.id])?'✓ ':d>DRONE.alcance?'➜ ':'● ')+h.nome+(d>DRONE.alcance?' · '+Math.round(d)+' m · clique p/ ir':' · PERTO · clique p/ observar');}}
 function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){const c=[[26,0],[-26,0],[0,26],[0,-26]].sort((a,b)=>Math.hypot(h.pos.x+a[0]-dr.x,h.pos.z+a[1]-dr.z)-Math.hypot(h.pos.x+b[0]-dr.x,h.pos.z+b[1]-dr.z))[0];
   const x=h.pos.x+c[0],z=h.pos.z+c[1],y=Math.max(62,h.pos.y+55),dx=h.pos.x-x,dz=h.pos.z-z,hz=Math.hypot(dx,dz);dr.go={x,y,z,h,yaw:Math.atan2(-dx,-dz),pitch:Math.max(-1.25,Math.atan2(h.pos.y-y,hz))};toast('Drone indo até '+h.nome+'. Ao chegar, a observação abre sozinha.',4500);return;}
- const p=PISTAS[h.id]||FLAV[h.id];ui(`<h2>${p[0]}</h2><p>${p[1]}</p>`+(PISTAS[h.id]?(st.p[h.id]?'<p class="sm">Já anotado no caderno.</p>':bt('reg',`Anotar no caderno de campo`,h.id)):'')+bt('close','Voltar ao drone'));}
+ const p=PISTAS[h.id]||PQ[h.id]||FLAV[h.id];ui(`<h2>${p[0]}</h2><p>${p[1]}</p>`+((PISTAS[h.id]||PQ[h.id])?((st.p[h.id]||st.q[h.id])?'<p class="sm">Já anotado no caderno.</p>':bt('reg',`Anotar no caderno de campo`,h.id)):'')+bt('close','Voltar ao drone'));}
 A.reg=id=>{pista(id);closeUI();};
 
 /* ===== LUTA DE DRONES ===== */
@@ -434,6 +441,19 @@ function fightUpdate(dt,t){
 A.lutar=startFight;
 A.luta=()=>ui(`<h2 style="color:#ff4fd8">Interceptação do Consórcio</h2><p>Quando um drone de auditoria sai da rota aprovada, o Consórcio manda drones de segurança para derrubá-lo e apagar a transmissão. Eles não discutem o que você viu. Se o seu drone cair, a imagem some e o que você filmou fica sem prova.</p><p>Objetivo: derrubar os três drones vermelhos antes que derrubem o seu.</p><h3>Como jogar</h3><p>A / D: mover para os lados · W / S: frente e trás · R / F: subir e descer<br>Espaço ou clique: atirar (o tiro persegue o alvo mais próximo)<br>E: pulso EMP, dano nos três (recarrega em 7 s)<br>Desvie dos tiros laranja. Cada pista no caderno aumenta o dano dos seus tiros.</p>`+bt('lutar','Entrar em combate','','on')+bt('close','Voltar'));
 addEventListener('pointerdown',()=>{if(F.on)keys[' ']=1;});addEventListener('pointerup',()=>{if(F.on)keys[' ']=0;});
+/* ===== FASE 2 · TRABALHO E RENDA ===== */
+A.fase2=()=>{st.f2=1;st.q={};st.pn2=0;st.feed2=0;st.fim2=0;OB.length=0;OB.push(['painel','Conferir Trabalho e renda no painel',()=>st.pn2,'painel'],['feed','Lançar o drone no terminal',()=>st.feed2,'terminal'],['pistas','Reunir observações',()=>nQ()>=4,'arquivo'],['fim','Decidir no certificado',()=>st.fim2,'impressora']);
+ if(lst){lst.remove();lst=null;}$('#marks').innerHTML='';upObj();ui(`<h2>Indicador 2 · Trabalho e renda</h2>`+call('sis','MERIDIANA','assistente do projeto','O indicador de Trabalho e renda está conforme: 11.400 postos criados contra uma meta de 10.000. Posso emitir o certificado quando quiser.')+`<p class="sm">O mesmo drone, uma segunda pergunta: quem ocupa esses postos?</p>`+bt('close','Começar a auditoria'));};
+const painel1=A.painel;A.painel=()=>{if(!st.f2)return painel1();st.pn2=1;upObj();ui(`<h2>Painel de indicadores · Trabalho e renda</h2><table><tr><th>Indicador</th><th>Meta</th><th>Resultado</th><th></th></tr><tr><td>Postos de trabalho criados</td><td>10.000</td><td>11.400</td><td class="ok">conforme</td></tr><tr><td>Renda média</td><td>+10%</td><td>+18%</td><td class="ok">conforme</td></tr><tr><td>Desemprego</td><td>menor que 6%</td><td>4,1%</td><td class="ok">conforme</td></tr></table>`+bt('det2','Detalhar postos de trabalho')+bt('close','Sair'));};
+A.det2=()=>{ui(`<h2>Postos de trabalho · detalhe</h2>`+(nQ()?`<p>Vínculo formal na cidade: <b>3.500</b><br>Terceirizadas externas e plataforma: <b>7.900</b><br>Famílias reassentadas contratadas: <b>41</b> de 612</p><p class="sm">Todos entram na mesma conta de "postos criados".</p>`:'<p class="sm">Campo recolhido. Só abre com uma observação de campo anexada.</p>')+bt('painel','‹ Voltar'));};
+const imp1=A.impressora;A.impressora=()=>{if(!st.f2)return imp1();ui(`<h2>Certificado de Conclusão · Trabalho e renda</h2>`+call('sis','MERIDIANA','assistente do projeto','Todos os indicadores constam como conformes. Recomendo assinar.')+`<p class="sm">Observações no caderno: ${nQ()} de 4.</p>`+(st.feed2?bt('luta','Atender a campainha (confronto com o Consórcio)','','on'):'')+bt('dec2','Assinar como conforme','c')+bt('dec2','Marcar Trabalho e renda como pendente','p')+bt('dec2','Solicitar vistoria presencial','v')+bt('close','Voltar'));};
+A.dec2=v=>{const n=nQ();
+ if(v==='p'&&n<3){ui(`<h2>Justificativa insuficiente</h2><p>Uma pendência precisa de pelo menos três observações anexadas. Há ${n}.</p>`+bt('impressora','‹ Voltar'));return;}
+ if(v==='v'&&!st.q.q4){ui(`<h2>Pedido sem fundamento</h2><p>Uma vistoria exige uma evidência sobre os critérios de acesso às vagas.</p>`+bt('impressora','‹ Voltar'));return;}
+ const t={c:'O certificado sai. Trabalho e renda continua verde. Os 7.900 postos terceirizados contam como emprego criado e nenhuma das famílias removidas aparece na folha.',
+  p:'A pendência chega ao Consórcio. O indicador de Participação, que citava as vagas na consulta de 2019, passa a amarelo. O entregador continua na rua, mas há agora um número no relatório que o inclui.',
+  v:'O pedido de vistoria cita o filtro de endereço. A coordenação pede nova autorização e o painel de vagas ganha uma nota de rodapé.'}[v];
+ st.fim2=1;upObj();ui(`<h2 style="color:#ffb13b">Fase 2 concluída</h2><p>${t}</p><p class="sm">Próximo indicador: Participação.</p>`+bt('close','Continuar na sala'));};
 /* ================= LOOP ================= */
 const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started)return;
  if(k==='escape'){if(uiOpen&&!F.on)closeUI();else if(modo==='feed'&&!F.on)sairFeed();}
@@ -469,12 +489,24 @@ function update(dt,t){
   dr.x=Math.max(-170,Math.min(170,dr.x));dr.z=Math.max(-170,Math.min(170,dr.z));
   camC.position.set(dr.x,dr.y,dr.z+Math.sin(t*1.3)*.15);const f=new THREE.Vector3(-Math.sin(dr.yaw)*Math.cos(dr.pitch),Math.sin(dr.pitch),-Math.cos(dr.yaw)*Math.cos(dr.pitch));camC.lookAt(camC.position.clone().add(f));
   const bus=sceneC.userData.bus;if(bus){const av=CIDADE.avenidas;for(let i=0;i<6;i++){const a=av[(i*3+2)%av.length],p=((t*(6+i)+i*37)%360)-180;const alongX=i%2===0;tmpQ.setFromAxisAngle(new THREE.Vector3(0,1,0),alongX?Math.PI/2:0);tmpM.compose(new THREE.Vector3(alongX?p:a+2,1.2,alongX?a+2:p),tmpQ,tmpS);bus.setMatrixAt(i,tmpM);}bus.instanceMatrix.needsUpdate=true;}
+  {const bk=sceneC.userData.bike,q2=sceneC.userData.q2;if(bk){const z=((t*6)%320)-160;bk.position.set(-24,1.4,z);if(q2)q2.pos.set(-24,4,z);bk.visible=!!st.f2;}}
   $('#alt').textContent=Math.round(dr.y);const d=new Date(2031,2,14,3,12,0,0);d.setSeconds(Math.floor(t));$('#ts').textContent=d.toLocaleString('pt-BR');marcadores();}
 }
 
 /* ================= INICIALIZAÇÃO ================= */
 resize();await montarSala();await jogador();await montarCidade();
-for(const h of hot){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:h.id==='fl'?0x888888:0x00ffe0,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);sceneC.add(bm);}
+for(const h of hot){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:h.id==='fl'?0x888888:0x00ffe0,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);sceneC.add(bm);h.beam=bm;}
+
+/* ===== conteúdo da Fase 2 ===== */
+{for(const h of hot)h.f=1;
+ const hub=new THREE.Group(),hm=new THREE.MeshStandardMaterial({color:0x2a3a50,emissive:0xffffff,emissiveMap:tex((x,w,h)=>{x.fillStyle='#050a12';x.fillRect(0,0,w,h);for(let c=0;c<16;c++){x.fillStyle=c%2?'#7fe8ff':'#ffd27a';x.fillRect(c*16+2,20,12,60);}},256,128),emissiveIntensity:1.3});
+ const gb=new THREE.Mesh(new THREE.BoxGeometry(34,10,24),hm);gb.position.y=5;hub.add(gb);hub.position.set(108,0,-108);sceneC.add(hub);
+ const hl=new THREE.PointLight(0x9ff,80,60,2);hl.position.set(108,14,-96);sceneC.add(hl);
+ const bd=new THREE.Mesh(new THREE.PlaneGeometry(26,9),new THREE.MeshBasicMaterial({map:tex((x,w,h)=>{x.fillStyle='#0b1a2a';x.fillRect(0,0,w,h);x.strokeStyle='#00e5d8';x.lineWidth=4;x.strokeRect(6,6,w-12,h-12);x.fillStyle='#7dffea';x.font='bold 44px sans-serif';x.fillText('11.400 VAGAS ABERTAS',22,70);x.fillStyle='#cfe';x.font='20px sans-serif';x.fillText('exige comprovante de endereço no cadastro oficial',24,110);},512,150)}));bd.position.set(0,24,40);sceneC.add(bd);
+ const bike=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.4,3.4),new THREE.MeshStandardMaterial({color:0x222222,emissive:0xffb13b,emissiveIntensity:1.6}));const bl=new THREE.PointLight(0xffb13b,25,14,2);bike.add(bl);sceneC.add(bike);sceneC.userData.bike=bike;
+ const q2={id:'q2',pos:new THREE.Vector3(-24,4,0),nome:'Entregador'};
+ hot.push({id:'q1',pos:new THREE.Vector3(108,8,-108),nome:'Centro de distribuição',f:2},q2,{id:'q3',pos:new THREE.Vector3(24,8,-20),nome:'Portão de serviço',f:2},{id:'q4',pos:new THREE.Vector3(0,24,40),nome:'Painel de vagas',f:2});q2.f=2;sceneC.userData.q2=q2;
+ for(const h of hot)if(h.f===2){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:0xffb13b,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);bm.visible=false;sceneC.add(bm);h.beam=bm;}}
 
 rp=new RenderPass(sceneR,camR);
 composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:4}));composer.addPass(rp);bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.6,.6,.9);composer.addPass(bloom);composer.addPass(new OutputPass());resize();
