@@ -43,7 +43,8 @@ function portrait(who){const c=document.createElement('canvas');c.width=c.height
 const PORT={dilson:portrait('dilson'),sis:portrait('sis')};
 
 /* ---------- estado e interface ---------- */
-const st={termo:0,painel:0,feed:0,call:0,p:{},fim:0,q:{},f2:0,pn2:0,feed2:0,fim2:0};
+const st={termo:0,painel:0,feed:0,call:0,p:{},fim:0,q:{},f2:0,pn2:0,feed2:0,fim2:0,pnl:{},fdl:{},fin:{},res:{},inf:0};
+const FASE=()=>st.f5?5:st.f4?4:st.f3?3:st.f2?2:1;
 const PISTAS={
  p1:['Quadra Aurora','A maioria das janelas está apagada e o medidor de água da calçada marca zero em quase toda a quadra.'],
  p2:['Casa 17','Uma casa baixa, janela acesa, fora do traçado das ruas novas. O número foi pintado à mão no portão e não existe no cadastro do Consórcio.'],
@@ -71,7 +72,7 @@ function pista(id){const q=PQ[id],S=q?st.q:st.p;if(S[id])return false;S[id]=1;up
 const OB=[['termo','Ler o Termo de Conclusão',()=>st.termo,'termo'],['painel','Conferir o painel de indicadores',()=>st.painel,'painel'],
  ['feed','Lançar o drone no terminal',()=>st.feed,'terminal'],['pistas','Reunir observações ('+nP()+'/6)',()=>nP()>=6,'arquivo'],['fim','Decidir no certificado',()=>st.fim,'impressora']];
 function nextT(){const o=OB.find(o=>!o[2]());return o?TG.find(t=>t.id===(o[0]==='pistas'&&!st.f2&&st.p.p1&&st.p.p2&&st.p.p3?((st.p.p4&&st.p.p5)?'terminal':'painel'):o[3])):null;}
-function upObj(){$('#objin').innerHTML='<h4>'+(st.f2?'Fase 2 · Trabalho e renda':'Fase 1 · Moradia')+'</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?(!st.f2&&st.p.p1&&st.p.p2&&st.p.p3&&nP()<6?'Falta: '+[!st.p.p4&&'Detalhar Moradia (painel)',!st.p.p5&&'Abrir laudos (painel)',!st.p.p6&&'atender a chamada (terminal)'].filter(Boolean).join(', ')+' ('+nP()+'/6)':'Reunir observações ('+(st.f2?nQ()+'/4':nP()+'/6')+')'):o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
+function upObj(){$('#objin').innerHTML='<h4>'+(FT[FASE()])+'</h4>'+OB.map(o=>{const d=o[2](),n=!d&&o===OB.find(x=>!x[2]());const l=o[0]==='pistas'?(!st.f2&&st.p.p1&&st.p.p2&&st.p.p3&&nP()<6?'Falta: '+[!st.p.p4&&'Detalhar Moradia (painel)',!st.p.p5&&'Abrir laudos (painel)',!st.p.p6&&'atender a chamada (terminal)'].filter(Boolean).join(', ')+' ('+nP()+'/6)':'Reunir observações ('+(st.f2?nQ()+'/4':nP()+'/6')+')'):o[1];return `<div class="${d?'d':n?'n':''}">${d?'■':'□'} ${l}</div>`}).join('');}
 
 /* ---------- textos e menus ---------- */
 const TG=[{id:'termo',x:1.9,y:3.2,l:'Ler o Termo de Conclusão'},{id:'painel',x:2.4,y:1.9,l:'Abrir o painel de indicadores'},{id:'terminal',x:5.4,y:1.9,l:'Usar o terminal do drone'},
@@ -2141,7 +2142,7 @@ const turbines=[];
   turbines.forEach(t=>{t.rot.rotation.z+=t.sp*dt;});waterTex.offset.x=(waterTex.offset.x-dt*.012)%1;};
  sceneC.userData.cityUpd=cityUpd;
  const W=(x,y,z)=>new T.Vector3(x*CS,y*CS,z*CS);
- window.CPOS={q1:W(bc(8),5,bc(1)),q3:W(0,5,-6),q4:W(0,22,rl(5)),bikeX:rl(3)*CS};
+ window.CPOS={q1:W(bc(8),5,bc(1)),q3:W(0,5,-6),q4:W(0,22,rl(5)),bikeX:rl(3)*CS,fx:(i,y,k)=>W(bc(i),y,bc(k))};
  hot.push({id:'p1',pos:W(bc(2),22,bc(4)),nome:'Quadra Aurora'},{id:'p2',pos:W(bc(0),6,bc(7)),nome:'Casa 17'},{id:'p3',pos:W(bc(6),5,bc(2)),nome:'Tapume'},{id:'fl',pos:W(0,60,0),nome:'Torre central'});
 }
 const FLAV={fl:['Torre central','Quase todas as janelas estão acesas e nenhuma silhueta aparece nelas. Segundo o painel, são escritórios de fundos de investimento. Esta observação é só de contexto e não entra no caderno.']};
@@ -2151,17 +2152,18 @@ function entrarFeed(sem){modo='feed';dockDrone.visible=false;rp.scene=sceneC;rp.
  if(!sem&&!st.dv){st.dv=1;A.ajudaD();}else if(!sem)toast('Drone no ar. H: ajuda de controles.',4000);}
 function sairFeed(){if(modo!=='feed')return;modo='sala';dockDrone.visible=true;rp.scene=sceneR;rp.camera=camR;$('#feedui').style.display='none';document.body.classList.remove('feed');$('#marks').innerHTML='';}
 let lst;function lista(){if(!lst){lst=document.createElement('div');lst.style.cssText='position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:6;pointer-events:auto;max-width:300px';$('#feedui').appendChild(lst);
-  hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
+  hot.filter(h=>h.f===FASE()).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.style.cssText='font:inherit;font-size:.85em;text-align:left;cursor:pointer;color:#9ff;background:rgba(4,12,22,.85);border:1px solid #00e5d8;padding:.35em .7em';b.onclick=()=>examinar(h);lst.appendChild(b);});}
  for(const b of lst.children){const h=hot.find(x=>x.id===b.dataset.id),d=h.pos.distanceTo(camC.position),perto=d<=DRONE.alcance;b.style.borderColor=perto?'#7dff9a':'#00e5d8';b.style.color=(st.p[h.id]||st.q[h.id])?'#7a8a9a':perto?'#7dff9a':'#9ff';
   b.textContent=(st.p[h.id]?'✓ ':perto?'● ':'➜ ')+h.nome+' · '+Math.round(d)+' m · '+((st.p[h.id]||st.q[h.id])?'anotado':perto?'PERTO: clique p/ observar':'clique p/ ir até lá')+(h.id==='fl'?' (contexto)':'');}}
-function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';for(const h of hot)if(h.beam)h.beam.visible=h.f===(st.f2?2:1);
- if(!box.children.length)hot.filter(h=>h.f===(st.f2?2:1)).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
+function marcadores(){lista();const box=$('#marks');box.style.display=uiOpen?'none':'block';for(const h of hot)if(h.beam)h.beam.visible=h.f===FASE();
+ if(!box.children.length)hot.filter(h=>h.f===FASE()).forEach(h=>{const b=document.createElement('button');b.dataset.id=h.id;b.onclick=()=>examinar(h);box.appendChild(b);});
  for(const b of box.children){const h=hot.find(x=>x.id===b.dataset.id),v=h.pos.clone().project(camC),d=h.pos.distanceTo(camC.position);
   const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;b.style.display=vis?'block':'none';if(!vis)continue;
   b.style.left=((v.x+1)/2*innerWidth)+'px';b.style.top=((1-v.y)/2*innerHeight)+'px';b.className=(d>DRONE.alcance?'far ':'')+((st.p[h.id]||st.q[h.id])?'done':'');
   b.textContent=((st.p[h.id]||st.q[h.id])?'✓ ':d>DRONE.alcance?'➜ ':'● ')+h.nome+(d>DRONE.alcance?' · '+Math.round(d)+' m · clique p/ ir':' · PERTO · clique p/ observar');}}
 function examinar(h){const d=h.pos.distanceTo(camC.position);if(d>DRONE.alcance){const c=[[26,0],[-26,0],[0,26],[0,-26]].sort((a,b)=>Math.hypot(h.pos.x+a[0]-dr.x,h.pos.z+a[1]-dr.z)-Math.hypot(h.pos.x+b[0]-dr.x,h.pos.z+b[1]-dr.z))[0];
   const x=h.pos.x+c[0],z=h.pos.z+c[1],y=Math.max(62,h.pos.y+55),dx=h.pos.x-x,dz=h.pos.z-z,hz=Math.hypot(dx,dz);dr.go={x,y,z,h,yaw:Math.atan2(-dx,-dz),pitch:Math.max(-1.25,Math.atan2(h.pos.y-y,hz))};toast('Drone indo até '+h.nome+'. Ao chegar, a observação abre sozinha.',4500);return;}
+ if(h.mis&&!st.q[h.id]){ui(`<h2>${h.nome}</h2><p>${h.mis.txt}</p>`+bt('missao','Iniciar a missão de campo',h.id,'on')+bt('close','Voltar ao drone'));return;}
  const p=PISTAS[h.id]||PQ[h.id]||FLAV[h.id];ui(`<h2>${p[0]}</h2><p>${p[1]}</p>`+((PISTAS[h.id]||PQ[h.id])?((st.p[h.id]||st.q[h.id])?'<p class="sm">Já anotado no caderno.</p>':bt('reg',`Anotar no caderno de campo`,h.id)):'')+bt('close','Voltar ao drone'));}
 A.reg=id=>{pista(id);closeUI();};
 
@@ -2181,7 +2183,7 @@ async function startFight(){closeUI();if(modo!=='feed')entrarFeed(1);toast('Dron
 const bar=(h,m,c)=>`<span style="display:inline-block;width:90px;height:8px;background:#10182a;border:1px solid ${c};vertical-align:middle"><i style="display:block;height:100%;width:${Math.max(0,h/m*100)}%;background:${c}"></i></span>`;
 function atira(from,to,vel,tipo,alvo){const m=new THREE.Mesh(bGeo,tipo?bE:bP);m.position.copy(from);sceneC.add(m);F.bolts.push({m,v:to.clone().sub(from).normalize().multiplyScalar(vel),t:3,tipo,alvo,vel});}
 function fightEnd(v){F.on=0;F.hud.style.display='none';for(const e of F.en)sceneC.remove(e.m);for(const b of F.bolts)sceneC.remove(b.m);F.en=[];F.bolts=[];sceneC.remove(F.me);F.me=null;
- if(v){if(lst)lst.style.display='';sairFeed();toast('Os drones do Consórcio caíram. A transmissão foi preservada e o seu drone voltou para a base.',6000);if(!st.f2&&!st.b1){st.b1=1;setTimeout(()=>ui(`<h2 style="color:#ff4fd8">Reforço por terra</h2><p>Os drones caíram, mas o Consórcio não aceita o sinal perdido. A porta de serviço se abre. A Aranha de Obra entra, e atrás dela vêm protocolos: autômatos enfaixados em papel timbrado, andando em fila.</p>`+bt('boss','Encarar a Aranha','','on')+bt('close','Esperar')),2500);}if(nP()>=0)st.fim=st.fim||0;upObj();}
+ if(v){if(lst)lst.style.display='';sairFeed();if(st.lastf){st.lastf=0;setTimeout(A.final,2200);}toast('Os drones do Consórcio caíram. A transmissão foi preservada e o seu drone voltou para a base.',6000);if(!st.f2&&!st.b1){st.b1=1;setTimeout(()=>ui(`<h2 style="color:#ff4fd8">Reforço por terra</h2><p>Os drones caíram, mas o Consórcio não aceita o sinal perdido. A porta de serviço se abre. A Aranha de Obra entra, e atrás dela vêm protocolos: autômatos enfaixados em papel timbrado, andando em fila.</p>`+bt('boss','Encarar a Aranha','','on')+bt('close','Esperar')),2500);}if(nP()>=0)st.fim=st.fim||0;upObj();}
  else ui(`<h2 style="color:#ff4fd8">Drone abatido</h2><p>A transmissão cai por alguns segundos e volta com a imagem do Consórcio.</p>`+bt('lutar','Tentar de novo','','on')+bt('fugir','Desistir e voltar à sala'));}
 A.fugir=()=>{closeUI();if(lst)lst.style.display='';sairFeed();};
 function fightUpdate(dt,t){
@@ -2216,7 +2218,7 @@ const IARA={0:'Você ainda não leu o termo? Lê antes de abrir o painel. Quem a
  4:'Segunda parte, mesma pergunta: quem ocupa esses empregos? Se você achar o entregador, vê de onde ele sai.',
  5:'Vaga que pede comprovante de endereço some para quem perdeu o endereço na limpeza de base. Anota isso.'};
 A.iara=()=>{const n=st.f2?nQ():nP();let k=!st.termo?0:!st.feed?1:st.fim&&!st.f2?3:st.f2?(n>=3?5:4):(n>=3?2:1);ui(`<h2>Iara</h2><p class="sm">mora com você · senta no sofá com um olho na tela</p><p>${IARA[k]}</p>`+bt('close','Valeu'));};
-A.gato=()=>{const al=hot.filter(h=>h.f===(st.f2?2:1)&&!(st.p[h.id]||st.q[h.id])).map(h=>h.nome);
+A.gato=()=>{const al=hot.filter(h=>h.f===FASE()&&!(st.p[h.id]||st.q[h.id])).map(h=>h.nome);
  ui(`<h2>Bit</h2><p class="sm">gato-robô · ronrona em 440 Hz</p><p>${st.feed?(al.length?'Alvos ainda sem registro: '+al.join(', ')+'. Pelo drone, clica no nome na lista e ele vai sozinho.':'Todos os alvos desta fase já estão no caderno. Falta decidir no certificado.'):'Bateria do drone: 100%. Sinal estável. Recomendo o terminal, a mesa da direita.'}</p><p class="sm">Se ele fizer miau de alerta, tem algo vindo.</p>`+bt('close','Fechar'));};
 /* ===== BATALHA CONTRA A ARANHA DE OBRA ===== */
 const Bo={mu:[],mt:6,mk:null,on:0,hp:600,max:600,ph:100,sh:0,m:null,p:new THREE.Vector3(13,0,3.5),att:null,cd:2,stun:0,fire:0,tele:[],proj:[],pick:null,pt:0,res:0,hud:null,say:0,half:0};
@@ -2235,10 +2237,9 @@ async function startBoss(){closeUI();
  if(!Bo.hud){Bo.hud=document.createElement('div');Bo.hud.className='bev';Bo.hud.style.cssText='position:fixed;left:50%;bottom:44px;transform:translateX(-50%);padding:.5em 1em;z-index:6;font-size:.9em;text-align:center;pointer-events:none;--ch:10px';document.body.appendChild(Bo.hud);}
  Bo.hud.style.display='block';Bo.on=1;toast('Bit: ela entrou pela janela de serviço. Espaço joga as páginas do caderno. Fica longe dos círculos vermelhos.',6500);}
 A.boss=()=>ui(`<h2 style="color:#ff4fd8">Aranha de Obra</h2><p>Quando um auditor contesta o relatório, o Consórcio manda a Aranha de Obra. Ela foi feita para demolir e desobstruir terreno, e agora desobstrui o que atrapalha o cronograma. Se ela te alcançar, as anotações do caderno somem junto com o resto.</p><p>Objetivo: derrubar a Aranha antes que ela derrube você.</p><h3>Como jogar</h3><p>WASD ou setas: mover · Q / R: girar a câmera<br>Espaço: jogar uma página do caderno (mira sozinha na Aranha; cada observação anotada aumenta o dano)<br>Círculo vermelho no chão: golpe em 1 segundo, saia de dentro<br>Linha vermelha: ela vai avançar. Depois do avanço ela fica tonta por uns segundos e leva o dobro de dano<br>Pegue o escudo azul no chão: ele absorve um golpe.</p>`+bt('bossgo','Entrar em combate','','on')+bt('close','Voltar'));
-A.bossgo=startBoss;
 A.bossfugir=()=>{closeUI();};
 function bossEnd(v){Bo.on=0;for(const u of Bo.mu)sceneR.remove(u.m);Bo.mu=[];Bo.hud.style.display='none';for(const x of Bo.tele)sceneR.remove(x.m);for(const x of Bo.proj)sceneR.remove(x.m);Bo.tele=[];Bo.proj=[];if(Bo.pick){sceneR.remove(Bo.pick);Bo.pick=null;}
- if(v){const m=Bo.m;Bo.m=null;sceneR.remove(m);toast('A Aranha desabou. Iara: "Anota isso no relatório."',7000);}
+ if(v){const m=Bo.m;Bo.m=null;sceneR.remove(m);toast(Bo.kind&&Bo.kind!=='ar'?Bo.win:'A Aranha desabou. Iara: "Anota isso no relatório."',7000);}
  else{ui(`<h2 style="color:#ff4fd8">Derrubada</h2><p>A Aranha te encurrala perto da porta e as páginas se espalham pelo chão.</p>`+bt('bossgo','Tentar de novo','','on')+bt('bossfugir','Desistir'));}}
 function mum(){const g=Bo.mk.clone(true);g.traverse(o=>{if(o.isMesh){o.castShadow=true;const m=o.material=o.material.clone();m.emissive=new THREE.Color(0xffffff);m.emissiveMap=m.map;m.emissiveIntensity=.25;m.metalness=0;m.roughness=.9;}});g.updateMatrixWorld(true);let b=new THREE.Box3().setFromObject(g);const k=1.7/b.getSize(new THREE.Vector3()).y;g.scale.multiplyScalar(k);g.updateMatrixWorld(true);b.setFromObject(g);const c=b.getCenter(new THREE.Vector3());g.position.set(-c.x,-b.min.y,-c.z);const w=new THREE.Group();w.add(g);return w;}
 function ring(x,z,r){const m=new THREE.Mesh(new THREE.CircleGeometry(r,40),new THREE.MeshBasicMaterial({color:0xff2a40,transparent:true,opacity:.35,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(x,.04,z);sceneR.add(m);return m;}
@@ -2257,9 +2258,9 @@ function bossUpdate(dt,t){
   if(dist>2.6)Bo.p.addScaledVector(d.normalize(),(Bo.half?2.4:1.7)*dt);
   if(Bo.cd<=0){const r=Math.random(),dash=r<.4;
    if(dash){const dir=d.clone().normalize();const m=new THREE.Mesh(new THREE.PlaneGeometry(14,1.8),new THREE.MeshBasicMaterial({color:0xff2a40,transparent:true,opacity:.35,depthWrite:false}));m.rotation.x=-Math.PI/2;m.rotation.z=-Math.atan2(dir.z,dir.x);m.position.set(Bo.p.x+dir.x*7,.04,Bo.p.z+dir.z*7);sceneR.add(m);Bo.att={k:'dash',t:0,dir,m};bossMsg('Bit: ela vai avançar. Sai da linha!');}
-   else{const c=[{x:pl.x,z:pl.y}];if(Bo.half)c.push({x:pl.x+(Math.random()*4-2),z:pl.y+(Math.random()*3-1.5)});c.forEach(q=>q.m=ring(q.x,q.z,2.3));Bo.att={k:'slam',t:0,c};bossMsg('Bit: sai do círculo vermelho!');}}}
+   else{const c=[{x:pl.x,z:pl.y}];if(Bo.half)c.push({x:pl.x+(Math.random()*4-2),z:pl.y+(Math.random()*3-1.5)});if(Bo.kind&&Bo.kind!=='ar')for(let i=0;i<3;i++)c.push({x:pl.x+(Math.random()*8-4),z:pl.y+(Math.random()*5-2.5)});c.forEach(q=>q.m=ring(q.x,q.z,2.3));Bo.att={k:'slam',t:0,c};bossMsg('Bit: sai do círculo vermelho!');}}}
  Bo.p.x=Math.max(1,Math.min(15,Bo.p.x));Bo.p.z=Math.max(.9,Math.min(6.1,Bo.p.z));
- Bo.m.position.set(Bo.p.x,Math.sin(t*9)*.04,Bo.p.z);Bo.m.rotation.y=Math.atan2(d.x,d.z);
+ Bo.m.position.set(Bo.p.x,Math.sin(t*9)*.04,Bo.p.z);Bo.m.rotation.y=Math.atan2(d.x,d.z);if(Bo.kind==='mod')modAnim(t);if(Bo.kind==='cred')credAnim(t);
  /* tiro do jogador */
  if(!uiOpen&&keys[' ']&&Bo.fire<=0){Bo.fire=.35;const m=new THREE.Mesh(new THREE.BoxGeometry(.3,.03,.4),new THREE.MeshBasicMaterial({color:0xfff1b0}));m.position.set(pl.x,1.1,pl.y);sceneR.add(m);Bo.proj.push({m,v:Bo.p.clone().setY(1).sub(m.position).normalize().multiplyScalar(18),t:2});}
  for(const q of Bo.proj){q.t-=dt;q.m.position.addScaledVector(q.v,dt);q.m.rotation.y+=dt*14;if(q.m.position.distanceTo(new THREE.Vector3(Bo.p.x,1,Bo.p.z))<1.8){Bo.hp-=(10+2*(nP()+nQ()))*(Bo.stun>0?2:1);q.t=0;}for(const u of Bo.mu)if(q.t>0&&q.m.position.distanceTo(new THREE.Vector3(u.m.position.x,1,u.m.position.z))<1){u.hp-=10+2*(nP()+nQ());q.t=0;}}
@@ -2272,7 +2273,7 @@ function bossUpdate(dt,t){
  if(Bo.pick){if(Bo.pick.visible){Bo.pick.rotation.y+=dt*2;Bo.pick.position.y=.8+Math.sin(t*3)*.1;if(Math.hypot(pl.x-Bo.pick.position.x,pl.y-Bo.pick.position.z)<.9){Bo.sh=1;Bo.pick.visible=false;Bo.pt=16;toast('Escudo pego. Ele absorve um golpe.',2000);}}
   else if(!Bo.sh){Bo.pt-=dt;if(Bo.pt<=0){Bo.pick.position.set(2+Math.random()*12,.8,1+Math.random()*5);Bo.pick.visible=true;}}}
  const bar=(h,m,c)=>`<span style="display:inline-block;width:110px;height:8px;background:#10182a;border:1px solid ${c};vertical-align:middle"><i style="display:block;height:100%;width:${Math.max(0,h/m*100)}%;background:${c}"></i></span>`;
- Bo.hud.innerHTML=`<b style="color:#00e5d8">VOCÊ</b> ${bar(Bo.ph,100,'#00e5d8')} ${Math.max(0,Math.round(Bo.ph))} &nbsp;|&nbsp; <b style="color:#ff4fd8">ARANHA</b> ${bar(Bo.hp,Bo.max,'#ff4fd8')} ${Bo.stun>0?'<b style="color:#ffb13b">TONTA</b>':''} &nbsp;|&nbsp; Escudo: ${Bo.sh?'<b style="color:#7dff9a">ativo</b>':'não'} &nbsp;|&nbsp; Espaço: lançar página`;
+ Bo.hud.innerHTML=`<b style="color:#00e5d8">VOCÊ</b> ${bar(Bo.ph,100,'#00e5d8')} ${Math.max(0,Math.round(Bo.ph))} &nbsp;|&nbsp; <b style="color:#ff4fd8">${Bo.nome||'ARANHA'}</b> ${bar(Bo.hp,Bo.max,'#ff4fd8')} ${Bo.stun>0?'<b style="color:#ffb13b">TONTA</b>':''} &nbsp;|&nbsp; Escudo: ${Bo.sh?'<b style="color:#7dff9a">ativo</b>':'não'} &nbsp;|&nbsp; Espaço: lançar página`;
  if(Bo.hp<=0&&!Bo.res){Bo.res=1;setTimeout(()=>bossEnd(1),700);}
  else if(Bo.ph<=0&&!Bo.res){Bo.res=1;bossEnd(0);}}
 
@@ -2291,9 +2292,355 @@ A.dec2=v=>{const n=nQ();
   p:'A pendência chega ao Consórcio. O indicador de Participação, que citava as vagas na consulta de 2019, passa a amarelo. O entregador continua na rua, mas há agora um número no relatório que o inclui.',
   v:'O pedido de vistoria cita o filtro de endereço. A coordenação pede nova autorização e o painel de vagas ganha uma nota de rodapé.'}[v];
  st.fim2=1;upObj();ui(`<h2 style="color:#ffb13b">Fase 2 concluída</h2><p>${t}</p><p class="sm">Próximo indicador: Participação.</p>`+(v==='c'?'':bt('boss','Atender a porta de serviço','','on'))+bt('close','Continuar na sala'));};
+function moderador(){const T=THREE;let seed=4242;const R=()=>(seed=(seed*16807)%2147483647)/2147483647;const rr=(a,b)=>a+R()*(b-a);const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return [c,c.getContext('2d')];};const accent=new T.Color('#3ff2ff'),MAG=new T.Color('#ff2bd6');
+/* ---------- texturas ---------- */
+function panelTex(){
+  const [c,x]=mk(512,512);
+  x.fillStyle='#262a38';x.fillRect(0,0,512,512);
+  for(let i=0;i<5000;i++){x.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.12)';x.fillRect(R()*512,R()*512,2,2);}
+  x.strokeStyle='rgba(0,0,0,.65)';x.lineWidth=3;
+  for(let i=0;i<=4;i++){x.beginPath();x.moveTo(0,i*128);x.lineTo(512,i*128);x.stroke();x.beginPath();x.moveTo(i*128,0);x.lineTo(i*128,512);x.stroke();}
+  x.strokeStyle='rgba(255,255,255,.1)';x.lineWidth=1;
+  for(let i=0;i<=4;i++){x.beginPath();x.moveTo(0,i*128+3);x.lineTo(512,i*128+3);x.stroke();}
+  x.fillStyle='rgba(0,0,0,.55)';
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){[[10,10],[118,10],[10,118],[118,118]].forEach(p=>{x.beginPath();x.arc(i*128+p[0],j*128+p[1],3,0,7);x.fill();});}
+  for(let k=0;k<5;k++){const vx=rr(20,400),vy=rr(20,420);x.fillStyle='rgba(0,0,0,.5)';for(let s=0;s<6;s++)x.fillRect(vx,vy+s*8,70,4);}
+  return c;
+}
+function hazardTex(){
+  const [c,x]=mk(256,32);
+  x.fillStyle='#111';x.fillRect(0,0,256,32);
+  x.fillStyle='#f2c230';
+  for(let i=-2;i<12;i++){x.beginPath();x.moveTo(i*32,32);x.lineTo(i*32+16,32);x.lineTo(i*32+32,0);x.lineTo(i*32+16,0);x.fill();}
+  return c;
+}
+function hexTex(){
+  const [c,x]=mk(480,554);
+  x.fillStyle='#0b0818';x.fillRect(0,0,480,554);
+  const s=40,hh=Math.sqrt(3)*s;
+  for(let col=-1;col<=9;col++)for(let row=-1;row<=9;row++){
+    const cx=col*60,cy=row*hh+(((col%2)+2)%2?hh/2:0);
+    x.beginPath();
+    for(let k=0;k<6;k++){const a=k*Math.PI/3;const px=cx+s*Math.cos(a),py=cy+s*Math.sin(a);k?x.lineTo(px,py):x.moveTo(px,py);}
+    x.closePath();
+    if(R()<.08){x.fillStyle='rgba(63,242,255,.13)';x.fill();}
+    else if(R()<.05){x.fillStyle='rgba(255,43,214,.12)';x.fill();}
+    x.strokeStyle='rgba(120,150,255,.28)';x.lineWidth=2;x.stroke();
+  }
+  return c;
+}
+function T2(c,rx,ry){
+  const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.colorSpace=T.SRGBColorSpace;
+  t.anisotropy=4;
+  if(rx)t.repeat.set(rx,ry||rx);return t;
+}
+
+/* ---------- materiais ---------- */
+const metal=new T.MeshStandardMaterial({color:'#9aa0b8',map:T2(panelTex(),1,1),roughness:.45,metalness:.75});
+const metalDark=new T.MeshStandardMaterial({color:'#1c1f2b',roughness:.5,metalness:.8});
+const metalMid=new T.MeshStandardMaterial({color:'#3a3f55',roughness:.4,metalness:.85});
+const hazard=new T.MeshStandardMaterial({map:T2(hazardTex(),3,1),roughness:.6,metalness:.3});
+const coneMat=new T.MeshStandardMaterial({color:'#15171f',roughness:.8,metalness:.2,side:T.DoubleSide});
+const ledMat=new T.MeshBasicMaterial({color:accent,toneMapped:false});
+const magMat=new T.MeshBasicMaterial({color:MAG,toneMapped:false});
+const redMat=new T.MeshBasicMaterial({color:'#ff2a2a',toneMapped:false});
+const boss=new T.Group();
+const rig=new T.Group();boss.add(rig);          // balanço / tremor
+function add(parent,geo,mat,x,y,z,opts){
+  const m=new T.Mesh(geo,mat);m.position.set(x,y,z);
+  m.castShadow=!(opts&&opts.noShadow);m.receiveShadow=true;parent.add(m);return m;
+}
+// plinto
+add(boss,new T.CylinderGeometry(3.3,3.7,.5,8),metalDark,0,.25,0);
+const plRing=add(boss,new T.TorusGeometry(3.45,.07,8,64).rotateX(Math.PI/2),ledMat,0,.52,0,{noShadow:true});
+add(boss,new T.CylinderGeometry(2.9,3.1,.12,8),metalMid,0,.56,0);
+
+// cabine de som (corpo)
+const BODY_Y=.5;
+add(rig,new T.BoxGeometry(3.2,3.0,2.2),metal,0,BODY_Y+1.5,0);
+add(rig,new T.BoxGeometry(3.28,.28,2.28),hazard,0,BODY_Y+.3,0);
+add(rig,new T.BoxGeometry(3.4,.2,2.4),metalDark,0,BODY_Y+3.05,0);
+// tiras de LED nas quinas verticais
+const edgeLeds=[];
+[[-1.62,1.12],[1.62,1.12],[-1.62,-1.12],[1.62,-1.12]].forEach(p=>{
+  edgeLeds.push(add(rig,new T.BoxGeometry(.06,2.4,.06),ledMat,p[0],BODY_Y+1.75,p[1],{noShadow:true}));
+});
+// caixas de som (frente)
+const speakers=[];
+function speaker(parent,x,y,z,r,ry){
+  const g=new T.Group();g.position.set(x,y,z);if(ry)g.rotation.y=ry;parent.add(g);
+  add(g,new T.TorusGeometry(r,r*.12,10,40),metalDark,0,0,.02);
+  add(g,new T.CylinderGeometry(r*1.18,r*1.18,.12,32).rotateX(Math.PI/2),metalDark,0,0,-.03);
+  const cone=add(g,new T.CylinderGeometry(r*.97,r*.3,r*.55,40,1,true).rotateX(Math.PI/2),coneMat,0,0,-r*.12,{noShadow:true});
+  const cap=add(g,new T.SphereGeometry(r*.3,16,10,0,Math.PI*2,0,Math.PI/2).rotateX(Math.PI/2),metalMid,0,0,-r*.1,{noShadow:true});
+  const ringLed=add(g,new T.TorusGeometry(r*.62,.015,6,40),magMat,0,0,-r*.06,{noShadow:true});
+  speakers.push({g,cone,cap,r,ringLed,base:cone.position.z,capBase:cap.position.z});
+  return g;
+}
+const FZ=1.12;
+speaker(rig,-.82,BODY_Y+1.0,FZ,.66);speaker(rig,.82,BODY_Y+1.0,FZ,.66);
+speaker(rig,-.82,BODY_Y+2.15,FZ,.44);speaker(rig,.82,BODY_Y+2.15,FZ,.44);
+speaker(rig,-.82,BODY_Y+2.7,FZ,.2);speaker(rig,.82,BODY_Y+2.7,FZ,.2);
+// medidor VU central
+const vu=[];
+for(let i=0;i<12;i++){
+  const m=new T.MeshBasicMaterial({color:'#222',toneMapped:false});
+  add(rig,new T.BoxGeometry(.22,.1,.05),m,0,BODY_Y+.75+i*.19,FZ+.01,{noShadow:true});
+  vu.push(m);
+}
+// caixas laterais (fileiras)
+[-1,1].forEach(s=>{
+  const g=new T.Group();g.position.set(s*1.62,BODY_Y+1.6,0);g.rotation.y=s*Math.PI/2;rig.add(g);
+  const sp=[[0,.7,.5],[0,-.4,.62]];
+  sp.forEach(p=>{
+    const sg=new T.Group();sg.position.set(0,p[1],0.0);g.add(sg);
+    const r=p[2]*.8;
+    add(sg,new T.TorusGeometry(r,r*.12,8,32),metalDark,0,0,.02);
+    const cone=add(sg,new T.CylinderGeometry(r*.97,r*.3,r*.55,32,1,true).rotateX(Math.PI/2),coneMat,0,0,-r*.12,{noShadow:true});
+    speakers.push({g:sg,cone,cap:null,r,ringLed:null,base:cone.position.z,capBase:0});
+  });
+});
+
+// pescoço
+add(rig,new T.BoxGeometry(1.6,.95,1.2),metalMid,0,BODY_Y+3.55,0);
+add(rig,new T.BoxGeometry(2.4,.2,1.6),metalDark,0,BODY_Y+3.12,0);
+
+// cabeça-tela
+const head=new T.Group();head.position.set(0,6.05,0);head.scale.setScalar(1.2);rig.add(head);
+add(head,new T.BoxGeometry(3.9,2.7,1.0),metal,0,0,0);
+add(head,new T.BoxGeometry(4.05,.14,1.1),metalDark,0,1.38,0);
+add(head,new T.BoxGeometry(4.05,.14,1.1),metalDark,0,-1.38,0);
+[[-1],[1]].forEach(([s])=>{
+  add(head,new T.BoxGeometry(.07,2.45,.07),ledMat,s*1.88,0,.52,{noShadow:true});
+});
+add(head,new T.BoxGeometry(3.6,.07,.07),ledMat,0,1.2,.52,{noShadow:true});
+add(head,new T.BoxGeometry(3.6,.07,.07),magMat,0,-1.2,.52,{noShadow:true});
+// tela animada
+const SW=1024,SH=704;
+const [scv,sx]=mk(SW,SH);
+const screenTex=new T.CanvasTexture(scv);screenTex.colorSpace=T.SRGBColorSpace;screenTex.anisotropy=8;
+const screen=new T.Mesh(new T.PlaneGeometry(3.5,2.4),new T.MeshBasicMaterial({map:screenTex,toneMapped:false}));
+screen.position.set(0,0,.505);head.add(screen);
+// scanlines
+const [slc,slx]=mk(SW,SH);
+for(let y=0;y<SH;y+=4){slx.fillStyle='rgba(0,0,0,.22)';slx.fillRect(0,y,SW,2);}
+// alto-falantes de ouvido
+[-1,1].forEach(s=>{
+  const g=new T.Group();g.position.set(s*2.2,0,0);g.rotation.y=s*Math.PI/2;head.add(g);
+  add(g,new T.CylinderGeometry(.8,.8,.32,32).rotateX(Math.PI/2),metalDark,0,0,-.02);
+  const cone=add(g,new T.CylinderGeometry(.66,.2,.3,32,1,true).rotateX(Math.PI/2),coneMat,0,0,.1,{noShadow:true});
+  add(g,new T.TorusGeometry(.7,.05,8,32),magMat,0,0,.17,{noShadow:true});
+  speakers.push({g,cone,cap:null,r:.7,ringLed:null,base:cone.position.z,capBase:0});
+});
+// cornetas
+function horn(s){
+  const g=new T.Group();g.position.set(s*1.25,1.55,-.1);g.rotation.set(.95,0,-s*.25);head.add(g);
+  add(g,new T.CylinderGeometry(.32,.32,.5,16),metalDark,0,.25,0);
+  add(g,new T.CylinderGeometry(.62,.2,1.1,24,1,true),coneMat,0,1.0,0,{noShadow:true});
+  add(g,new T.TorusGeometry(.62,.05,8,24).rotateX(Math.PI/2),ledMat,0,1.55,0,{noShadow:true});
+}
+horn(-1);horn(1);
+// sirene
+add(head,new T.CylinderGeometry(.36,.45,.22,20),metalDark,0,1.56,0);
+const lens=add(head,new T.CylinderGeometry(.26,.3,.34,20),redMat,0,1.84,0,{noShadow:true});
+const beamG=new T.ConeGeometry(1.3,8,24,1,true);beamG.translate(0,-4,0);beamG.rotateZ(Math.PI/2);
+const beamMat=new T.MeshBasicMaterial({color:'#ff2a2a',transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,toneMapped:false});
+const siren=new T.Group();siren.position.set(0,1.84,0);head.add(siren);
+const beam=new T.Mesh(beamG,beamMat);beam.raycast=()=>{};siren.add(beam);
+const beam2=new T.Mesh(beamG,beamMat);beam2.rotation.y=Math.PI;beam2.raycast=()=>{};siren.add(beam2);
+// antena
+add(head,new T.CylinderGeometry(.03,.03,1.5,6),metalMid,-1.7,1.95,-.3);
+const antTip=add(head,new T.SphereGeometry(.09,8,8),magMat,-1.7,2.72,-.3,{noShadow:true});
+
+// ombros e braços-martelo (banhammer)
+const arms=[];
+[-1,1].forEach(s=>{
+  const sh=new T.Group();sh.position.set(s*2.55,BODY_Y+2.55,0);rig.add(sh);
+  add(sh,new T.SphereGeometry(.5,20,16),metalMid,0,0,0);
+  add(sh,new T.TorusGeometry(.52,.05,8,32),magMat,0,0,0,{noShadow:true}).rotation.y=Math.PI/2;
+  const pivot=new T.Group();sh.add(pivot);
+  add(pivot,new T.BoxGeometry(.55,1.4,.55),metalDark,0,.7,0);
+  add(pivot,new T.CylinderGeometry(.17,.2,2.5,12),metalMid,0,2.35,0);
+  add(pivot,new T.TorusGeometry(.24,.04,6,16).rotateX(Math.PI/2),ledMat,0,1.55,0,{noShadow:true});
+  const hd=new T.Group();hd.position.set(0,4.0,0);pivot.add(hd);
+  add(hd,new T.CylinderGeometry(.58,.58,1.7,28).rotateZ(Math.PI/2),metal,0,0,0);
+  [-1,1].forEach(e=>{
+    add(hd,new T.CylinderGeometry(.64,.64,.2,28).rotateZ(Math.PI/2),metalDark,e*.9,0,0);
+    add(hd,new T.TorusGeometry(.6,.045,8,32).rotateY(Math.PI/2),magMat,e*.66,0,0,{noShadow:true});
+  });
+  arms.push({s,sh,pivot,hd,t:-1,hit:false,idle:.12});
+});
+
+// torretas de ombro
+const turrets=[];
+[-1,1].forEach(s=>{
+  const g=new T.Group();g.position.set(s*1.15,BODY_Y+3.15+.1,-.55);rig.add(g);
+  add(g,new T.CylinderGeometry(.42,.5,.28,16),metalDark,0,.14,0);
+  const th=new T.Group();th.position.set(0,.5,0);g.add(th);
+  add(th,new T.BoxGeometry(.8,.55,.9),metalMid,0,0,0);
+  add(th,new T.SphereGeometry(.2,12,10),ledMat,0,.32,-.1,{noShadow:true});
+  const barrels=[];
+  [-1,1].forEach(b=>{
+    const brl=add(th,new T.CylinderGeometry(.075,.09,1.3,10).rotateX(Math.PI/2),metalDark,b*.22,0,.95);
+    add(th,new T.CylinderGeometry(.11,.11,.14,10).rotateX(Math.PI/2),ledMat,b*.22,0,1.6,{noShadow:true});
+    barrels.push(brl);
+  });
+  turrets.push({g,th,barrels,recoil:0});
+});
+
+return {boss,rig,head,arms,turrets,speakers,edgeLeds,vu,sx,scv,screenTex,SW,SH};}
+
+/* ================= FASES 3 A 5 ================= */
+const FT={1:'Fase 1 · Moradia',2:'Fase 2 · Trabalho e renda',3:'Fase 3 · Participação',4:'Fase 4 · Emissões',5:'Fase 5 · Aterrar na Casa 17'};
+Object.assign(PQ,{
+ r1:['Sala da audiência','A audiência pública de hoje tem 3.200 inscritos e uma sala com 40 cadeiras. A ata da audiência já está impressa e assinada, com a data de ontem.'],
+ r2:['Totem de inscrição','Para participar da consulta é preciso informar o número do cadastro oficial. Quem foi apagado na limpeza de base não passa da primeira tela.'],
+ r3:['Faixa da consulta','A faixa de 2019 diz "Meridiano ouviu você". A consulta durou três dias úteis, sempre às 14h. Das sugestões registradas, 41 vieram de moradores de áreas afetadas.'],
+ r4:['Registro dos moradores','A vila fez o próprio registro, em papel e áudio: 212 famílias, com nome, endereço e foto. A ata do Consórcio não cita nenhuma delas.'],
+ s1:['Estação de monitoramento','As 14 estações de qualidade do ar ficam dentro do perímetro do projeto, entre canteiros plantados. O painel só lê essas.'],
+ s2:['Aterro da borda','A 600 m da última estação há um aterro de resíduos da obra e uma nuvem baixa que o painel não mede. A Casa 17 fica a favor do vento.'],
+ s3:['Usina a gás','A energia da cidade "limpa" vem de uma usina a gás na borda, fora do perímetro. As emissões dela não entram no indicador.'],
+ s4:['Canteiro de créditos','O Consórcio compensa o que emite comprando créditos de plantio em outra região. No papel são 120.000 árvores. O terreno cadastrado comporta 9.000.'],
+ t1:['Água','A água da cidade vem do rio que passa ao lado da Casa 17. A captação fica rio acima. O esgoto da obra desce rio abaixo, sem tratamento, até a vila.'],
+ t2:['Quem mantém a cidade acesa','Os turnos da noite, a limpeza das torres e as entregas dependem de quem mora fora do perímetro. A cidade usa esse trabalho e não registra essas pessoas.'],
+ t3:['O que a cidade descarta','Entulho, resíduo e lixo eletrônico vão para a borda. Quem vive ali convive com isso há quinze anos.']});
+const PH={
+ 3:{n:'Participação',det0:'participação',intro:'O indicador de Participação está conforme: 12 audiências públicas, 3.200 participantes e 94% de aprovação da consulta. Posso emitir o certificado.',q:'Mesma pergunta, outro indicador: quem foi ouvido de fato?',
+  rows:[['Audiências públicas realizadas','8','12'],['Participantes inscritos','2.000','3.200'],['Aprovação da consulta','80%','94%']],
+  det:'Inscritos com cadastro oficial: <b>3.200</b><br>Moradores de áreas afetadas: <b>41</b><br>Atas redigidas na véspera: <b>12 de 12</b><br>Casa 17 e entorno: <b>sem convite</b>',
+  rec:'Todos os indicadores constam como conformes. Recomendo assinar.',
+  opts:[['Validar a consulta como conforme','c',()=>1,''],['Anexar o registro dos moradores','a',()=>st.q.r4,'O anexo precisa do registro feito pelos moradores. Ele só existe se alguém for buscá-lo no campo.'],['Marcar Participação como pendente','p',()=>nQ()>=3,'Uma pendência precisa de pelo menos três observações anexadas.'],['Pedir nova audiência presencial','v',()=>st.q.r2,'O pedido exige uma evidência sobre as barreiras de inscrição.']],
+  out:{c:'O certificado sai. Participação continua verde e a ata de ontem, assinada com a data de hoje, vira o registro oficial da consulta.',
+   a:'O registro dos moradores entra como anexo. Não tem valor deliberativo, mas passa a constar no processo e o coordenador precisa citá-lo na próxima reunião.',
+   p:'A pendência chega ao Consórcio. A próxima audiência será presencial, com a mesma lista de inscritos.',
+   v:'O pedido cita o cadastro oficial como barreira. A coordenação responde que vai "avaliar formatos".'}},
+ 4:{n:'Emissões',det0:'qualidade do ar',intro:'O indicador de Emissões está conforme: o ar foi classificado como "bom" em 98% dos dias e foram plantadas 120.000 árvores. Posso emitir o selo verde.',q:'Último indicador: onde o ar é medido, e onde não é?',
+  rows:[['Dias com ar classificado "bom"','90%','98%'],['Árvores plantadas','100.000','120.000'],['Estações de monitoramento','10','14']],
+  det:'Estações dentro do perímetro do projeto: <b>14</b><br>Estações fora do perímetro: <b>0</b><br>Créditos de compensação comprados: <b>120.000</b><br>Fontes de emissão na borda: <b>não listadas</b>',
+  rec:'O selo verde está pronto para emissão. Recomendo certificar.',
+  opts:[['Certificar o selo verde','c',()=>1,''],['Recusar o selo','r',()=>nQ()>=3&&st.q.s2,'A recusa precisa de três observações, entre elas a do aterro da borda.'],['Anexar medição independente','a',()=>st.q.s2&&st.q.s3,'A medição independente exige as observações do aterro e da usina.'],['Pedir vistoria da borda','v',()=>st.q.s2,'A vistoria exige uma evidência sobre o que existe fora do perímetro medido.']],
+  out:{c:'O selo sai. As 14 estações e o plantio sustentam a nota. O aterro e a usina seguem fora do cálculo.',
+   r:'O selo é recusado. O Consórcio recorre no mesmo dia e o indicador passa a "em revisão".',
+   a:'A medição independente entra no processo e mostra o dobro de partículas na borda. O Consórcio contesta o equipamento.',
+   v:'A vistoria da borda é autorizada, com data a combinar.'}}};
+const doneF=f=>f===1?st.fim:f===2?st.fim2:st.fin[f];
+function iniciar(f){st['f'+f]=1;st.q={};OB.length=0;const P=PH[f];
+ if(f<5)OB.push(['painel','Conferir '+P.n+' no painel',()=>st.pnl[f],'painel'],['feed','Lançar o drone no terminal',()=>st.fdl[f],'terminal'],['pistas','Reunir observações',()=>nQ()>=4,'arquivo'],['fim','Decidir no certificado',()=>st.fin[f],'impressora']);
+ else OB.push(['inv','Reunir o inventário de dependências ('+3+' observações)',()=>nQ()>=3,'arquivo'],['pouso','Pousar na Casa 17 (terminal)',()=>st.fin[5],'terminal']);
+ if(lst){lst.remove();lst=null;}$('#marks').innerHTML='';upObj();
+ if(f<5)ui(`<h2>Indicador ${f} · ${P.n}</h2>`+call('sis','MERIDIANA','assistente do projeto',P.intro)+`<p class="sm">${P.q}</p>`+bt('close','Começar a auditoria'));
+ else ui(`<h2>Última etapa · Aterrar</h2>`+call('dilson','Dilson','morador da Casa 17','O Consórcio avisou que a Casa 17 entra no próximo ciclo da obra. Antes de você assinar o certificado final, olha de onde vem o que a cidade usa. Eu mostro o que sei, mas é o seu drone que precisa ver.')+`<p class="sm">Reúna as três observações do inventário e depois pouse na Casa 17.</p>`+bt('close','Começar'));}
+PH[5]={n:'Aterrar'};
+A.fase3=()=>iniciar(3);A.fase4=()=>iniciar(4);A.fase5=()=>iniciar(5);
+const lancar0=A.lancar;A.lancar=()=>{st.fdl[FASE()]=1;lancar0();};
+const terminal0=A.terminal;A.terminal=()=>{terminal0();const f=FASE();let h='';
+ if(f>=2&&f<5&&doneF(f)&&!st['f'+(f+1)])h=bt('fase'+(f+1),'Abrir o indicador: '+PH[f+1].n,'','on');
+ if(f===3&&doneF(3)&&!st.f4)h=bt('fase4','Abrir o indicador: Emissões','','on');
+ if(f===4&&doneF(4)&&!st.f5)h=bt('fase5','Último passo: aterrar na Casa 17','','on');
+ if(f===5&&nQ()>=3&&!st.fin[5])h=bt('pousar','Pousar na Casa 17','','on');
+ if(h)pn.querySelector('[data-a=close]').insertAdjacentHTML('beforebegin',h);};
+const pan0=A.painel;A.painel=()=>{const f=FASE();if(f<3)return pan0();
+ if(f===5){ui(`<h2>Índice de Desenvolvimento Meridiano</h2><table><tr><th>Indicador</th><th>Resultado</th></tr><tr><td>Moradia</td><td class="ok">conforme</td></tr><tr><td>Trabalho e renda</td><td class="ok">conforme</td></tr><tr><td>Participação</td><td class="ok">conforme</td></tr><tr><td>Emissões</td><td class="ok">conforme</td></tr></table><p>IDM: <b>94 de 100</b>. Falta o certificado final.</p>`+bt('close','Sair'));return;}
+ const P=PH[f];st.pnl[f]=1;upObj();ui(`<h2>Painel de indicadores · ${P.n}</h2><table><tr><th>Indicador</th><th>Meta</th><th>Resultado</th><th></th></tr>`+P.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="ok">conforme</td></tr>`).join('')+`</table>`+bt('detp','Detalhar '+P.det0)+bt('close','Sair'));};
+A.detp=()=>{const P=PH[FASE()];ui(`<h2>${P.det0[0].toUpperCase()+P.det0.slice(1)} · detalhe</h2>`+(nQ()?`<p>${P.det}</p>`:'<p class="sm">Campo recolhido. Só abre com uma observação de campo anexada.</p>')+bt('painel','‹ Voltar'));};
+const imp0=A.impressora;A.impressora=()=>{const f=FASE();if(f<3)return imp0();
+ if(f===5){ui(`<h2>Certificado final do IDM</h2><p>A assinatura final só pode ser dada depois do pouso na Casa 17. Use o terminal do drone.</p>`+bt('close','Voltar'));return;}
+ const P=PH[f];ui(`<h2>Certificado de Conclusão · ${P.n}</h2>`+call('sis','MERIDIANA','assistente do projeto',P.rec)+`<p class="sm">Observações no caderno: ${nQ()} de 4.</p>`+(st.fdl[f]?bt('boss',f===3?'Receber o Moderador (confronto)':'Receber a Máquina de Créditos (confronto)','','on'):'')+P.opts.map(o=>bt('decp',o[0],o[1])).join('')+bt('close','Voltar'));};
+A.decp=v=>{const f=FASE(),P=PH[f],o=P.opts.find(x=>x[1]===v);
+ if(!o[2]()){ui(`<h2>Pedido sem fundamento</h2><p>${o[3]}</p>`+bt('impressora','‹ Voltar'));return;}
+ st.res[f]=v;st.fin[f]=1;if(v==='c')st.inf++;upObj();
+ ui(`<h2 style="color:#ffb13b">Fase ${f} concluída</h2><p>${P.out[v]}</p><p class="sm">Próximo: ${f===3?'Emissões':'a Casa 17'}. Volte ao terminal do drone.</p>`+(v==='c'?'':bt('boss','Atender a convocação','','on'))+bt('close','Continuar na sala'));};
+A.pousar=()=>{closeUI();st.lastf=1;toast('O Consórcio detectou o pouso. Ele manda a última barreira de drones.',5000);startFight();};
+A.final=()=>{const inv=['t1','t2','t3'].map(k=>`<li>${PQ[k][0]}: ${PQ[k][1]}</li>`).join('');
+ ui(`<h2>Casa 17</h2><p>O drone está sobre o quintal. Dilson sai e olha para cima. No seu painel, o certificado final do IDM espera a assinatura.</p><h3>Inventário de dependências</h3><ul class="sm">${inv}</ul><p class="sm">Influência do Consórcio sobre você: ${st.inf}.</p>`+
+  bt('desfecho','Global: assinar o IDM','g')+bt('desfecho','Local: assinar com ressalva só para a vila','l')+bt('desfecho','Terrestre: recusar o IDM e pousar','t'));};
+A.desfecho=v=>{st.fin[5]=1;st.fim5=v;upObj();
+ const T={g:['Global',`Você assina. O IDM de Meridiano sai com nota máxima e a cidade passa a ser citada como modelo. Três semanas depois a Casa 17 entra no corredor da obra. A demolição é feita de madrugada, com laudo da engenharia do Consórcio. O número de Dilson deixa de atender. O relatório fica no site, com a sua assinatura.${st.inf>=3?' Seu contrato é renovado por mais três anos.':''}`],
+  l:['Local',`Você assina o IDM com uma ressalva: a Casa 17 e as quadras do entorno ficam fora do certificado, sob regime próprio. O Consórcio aceita porque a ressalva é pequena. A vila fica de pé, cercada de tapume dos dois lados, com água e luz ligadas por um acordo que vale enquanto durar o seu contrato. O resto de Meridiano segue como estava.`],
+  t:['Terrestre',`Você recusa a assinatura. O drone desce e pousa no quintal da Casa 17. Dilson abre o portão. O inventário de dependências (água, turnos da noite, resíduo, o ar da borda) vai para a ata da vila e para quem quiser ler. O Consórcio rescinde o seu contrato no mesmo dia${st.inf>=3?' e bloqueia o seu acesso a todos os relatórios anteriores':''}. A cidade continua acesa, mas agora existe um documento que diz de onde ela vem. Você fica com a janela do apartamento e o número de Dilson.`]}[v];
+ ui(`<h2 style="color:#ff4fd8">Final ${T[0]}</h2><p>${T[1]}</p><p class="sm">Meridiano: o que é desenvolvimento, e para quem, depois que o estrago está posto.</p>`+bt('reiniciar','Jogar de novo','','on')+bt('close','Ficar na sala'));};
+A.reiniciar=()=>location.reload();
+/* ----- missão de campo (run-and-gun) ----- */
+const MS={on:0,cv:null,x:null};
+function startMissao(cfg,id){closeUI();sairFeed();
+ if(!MS.cv){const c=document.createElement('canvas');c.width=960;c.height=420;c.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(98vw,1100px);z-index:30;border:2px solid #00e5d8;background:#05060f';document.body.appendChild(c);MS.cv=c;MS.x=c.getContext('2d');c.addEventListener('mousedown',()=>{keys.k=1;setTimeout(()=>keys.k=0,130);});}
+ MS.cv.style.display='block';let sd=cfg.seed||1;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+ const S=MS.s={cfg,id,len:cfg.len,x:60,y:340,vy:0,hp:5,face:1,cd:0,inv:0,pw:0,cam:0,t:0,bl:[],eb:[],en:[],pk:[],pf:[],end:0,sky:[]};
+ for(let i=0;i<40;i++)S.sky.push([rnd()*S.len*.4,60+rnd()*160,30+rnd()*50,60+rnd()*150]);
+ for(let x=500;x<S.len-300;x+=180+rnd()*140){const r=rnd();S.en.push(r<.5?{k:'s',x,y:340,hp:2,cd:rnd()*2}:r<.8?{k:'d',x,y:150+rnd()*90,hp:2,cd:rnd()*2,b:rnd()*6}:{k:'t',x,y:340,hp:4,cd:rnd()*2});if(rnd()<.35)S.pf.push({x:x+60,w:140,y:270});}
+ S.pk.push({x:S.len*.35,y:300,k:'L'},{x:S.len*.7,y:300,k:'L'});MS.on=1;}
+function mFim(v){MS.on=0;MS.cv.style.display='none';const S=MS.s;
+ if(v){pista(S.id);closeUI();ui(`<h2>Missão concluída</h2><p>${PQ[S.id][1]}</p><p class="sm">Anotado no caderno de campo.${S.pw?' O Consórcio registrou que você usou uma licença dele. A influência dele sobre você subiu.':''}</p>`+bt('close','Voltar à sala'));}
+ else ui(`<h2 style="color:#ff4fd8">Drone abatido</h2><p>O sinal cai antes de você chegar ao fim do percurso.</p>`+bt('missao','Tentar de novo',S.id,'on')+bt('close','Desistir'));}
+A.missao=id=>{const h=hot.find(x=>x.id===id);startMissao(h.mis,id);};
+function mUpdate(dt){const S=MS.s,k=keys,c=MS.x;dt=Math.min(dt,.04);S.t+=dt;
+ if(k.escape){k.escape=0;mFim(0);return;}
+ const dx=(k.d||k.arrowright?1:0)-(k.a||k.arrowleft?1:0);if(dx)S.face=dx;S.x=Math.max(S.cam+20,Math.min(S.len,S.x+dx*190*dt));
+ let ground=340;for(const p of S.pf)if(S.x>p.x&&S.x<p.x+p.w&&S.y<=p.y+4)ground=Math.min(ground,p.y);
+ if((k.w||k.arrowup||k[' '])&&S.y>=ground-1&&S.vy>=0)S.vy=-430;S.vy+=1100*dt;S.y+=S.vy*dt;if(S.y>=ground){S.y=ground;S.vy=0;}
+ S.cam=Math.max(S.cam,Math.min(S.len-960,S.x-300));
+ S.cd-=dt;S.inv-=dt;if((k.k||k.j||k.x)&&S.cd<=0){S.cd=S.pw?.14:.2;const f=S.face;S.bl.push({x:S.x,y:S.y-26,vx:f*520,vy:0,t:1});if(S.pw){S.bl.push({x:S.x,y:S.y-26,vx:f*500,vy:-110,t:1},{x:S.x,y:S.y-26,vx:f*500,vy:110,t:1});}}
+ for(const b of S.bl){b.x+=b.vx*dt;b.y+=b.vy*dt;b.t-=dt;}
+ const hurtP=()=>{if(S.inv>0)return;S.hp--;S.inv=1.1;};
+ for(const e of S.en){if(e.hp<=0)continue;const near=Math.abs(e.x-S.x)<620;e.cd-=dt;
+  if(e.k==='s'){if(near&&Math.abs(e.x-S.x)>140)e.x+=(S.x<e.x?-1:1)*55*dt;if(near&&e.cd<=0){e.cd=1.8;S.eb.push({x:e.x,y:e.y-26,vx:(S.x<e.x?-1:1)*260,vy:0,t:2.5});}}
+  else if(e.k==='d'){e.y=e.y+Math.sin(S.t*2+e.b)*30*dt;if(near)e.x+=(S.x<e.x?-1:1)*70*dt;if(near&&e.cd<=0){e.cd=2;const a=Math.atan2(S.y-24-e.y,S.x-e.x);S.eb.push({x:e.x,y:e.y,vx:Math.cos(a)*230,vy:Math.sin(a)*230,t:3});}}
+  else if(near&&e.cd<=0){e.cd=1.5;const a=Math.atan2(S.y-24-(e.y-20),S.x-e.x);S.eb.push({x:e.x,y:e.y-20,vx:Math.cos(a)*240,vy:Math.sin(a)*240,t:3});}
+  for(const b of S.bl)if(b.t>0&&Math.abs(b.x-e.x)<22&&Math.abs(b.y-(e.y-(e.k==='d'?0:24)))<28){b.t=0;e.hp--;}
+  if(Math.abs(e.x-S.x)<20&&Math.abs(e.y-S.y)<34)hurtP();}
+ for(const b of S.eb){b.x+=b.vx*dt;b.y+=b.vy*dt;b.t-=dt;if(Math.abs(b.x-S.x)<14&&Math.abs(b.y-(S.y-24))<26){b.t=0;hurtP();}}
+ for(const p of S.pk)if(!p.got&&Math.abs(p.x-S.x)<26&&Math.abs(p.y-(S.y-20))<40){p.got=1;S.pw=1;st.inf++;upObj();toast('Licença do Consórcio: tiro triplo. A influência dele sobre você aumentou.',3500);}
+ S.bl=S.bl.filter(b=>b.t>0);S.eb=S.eb.filter(b=>b.t>0);
+ if(S.hp<=0){mFim(0);return;}if(S.x>=S.len-10){mFim(1);return;}
+ /* desenho */
+ const cam=S.cam,col=S.cfg.cor;c.fillStyle='#070914';c.fillRect(0,0,960,420);
+ const g=c.createLinearGradient(0,0,0,340);g.addColorStop(0,'#0a0a24');g.addColorStop(1,'#2a0f3a');c.fillStyle=g;c.fillRect(0,0,960,340);
+ for(const s of S.sky){const x=((s[0]-cam*.3)%1400+1400)%1400-100;c.fillStyle='#10132e';c.fillRect(x,340-s[3],s[2],s[3]);c.fillStyle=col;c.globalAlpha=.5;for(let w=0;w<s[3];w+=18)if((w*7+(s[0]|0))%5<2)c.fillRect(x+6,340-s[3]+w,5,5);c.globalAlpha=1;}
+ c.fillStyle='#0c0e1a';c.fillRect(0,340,960,80);c.fillStyle=col;c.fillRect(0,340,960,2);
+ for(let x=-(cam%40);x<960;x+=40){c.globalAlpha=.25;c.fillRect(x,342,1,78);c.globalAlpha=1;}
+ for(const p of S.pf){c.fillStyle='#14182c';c.fillRect(p.x-cam,p.y,p.w,10);c.fillStyle=col;c.fillRect(p.x-cam,p.y,p.w,2);}
+ for(const p of S.pk)if(!p.got){c.fillStyle='#ffb13b';c.fillRect(p.x-cam-10,p.y-10+Math.sin(S.t*4)*3,20,20);c.fillStyle='#000';c.font='bold 12px monospace';c.fillText('L',p.x-cam-4,p.y+5+Math.sin(S.t*4)*3);}
+ for(const e of S.en){if(e.hp<=0)continue;const x=e.x-cam;if(x<-40||x>1000)continue;
+  if(e.k==='s'){c.fillStyle='#2a3350';c.fillRect(x-9,e.y-34,18,34);c.fillStyle='#ff4a2a';c.fillRect(x-9,e.y-40,18,7);c.fillRect(x+(S.x<e.x?-18:9),e.y-26,10,4);}
+  else if(e.k==='d'){c.fillStyle='#2a3350';c.fillRect(x-14,e.y-6,28,12);c.fillStyle='#ff4a2a';c.fillRect(x-4,e.y-2,8,5);c.fillStyle=col;c.fillRect(x-22,e.y-9,44,2);}
+  else{c.fillStyle='#2a3350';c.fillRect(x-14,e.y-16,28,16);c.fillStyle='#ff4a2a';c.fillRect(x-6,e.y-24,12,10);}}
+ const px=S.x-cam;if(S.inv<=0||((S.t*20)|0)%2){c.fillStyle='#00e5d8';c.fillRect(px-8,S.y-34,16,34);c.fillStyle='#e8fffb';c.fillRect(px-6,S.y-40,12,8);c.fillStyle='#ffb13b';c.fillRect(px+(S.face>0?6:-18),S.y-26,12,5);}
+ c.fillStyle='#e8fffb';for(const b of S.bl)c.fillRect(b.x-cam-4,b.y-1,8,3);c.fillStyle='#ff4a2a';for(const b of S.eb)c.fillRect(b.x-cam-3,b.y-3,6,6);
+ c.fillStyle='#e8fffb';c.font='13px monospace';c.fillText(S.cfg.titulo,14,22);for(let i=0;i<5;i++){c.fillStyle=i<S.hp?'#ff4fd8':'#2a2040';c.fillRect(14+i*20,32,16,10);}
+ c.fillStyle='#10182a';c.fillRect(700,16,240,8);c.fillStyle=col;c.fillRect(700,16,240*Math.min(1,S.x/S.len),8);
+ c.fillStyle='#7fb';c.font='11px monospace';c.fillText('A/D mover · W ou Espaço pular · K, J ou clique atirar · caixa L: Licença do Consórcio (tiro triplo; aumenta a influência dele) · Esc desistir',14,412);}
+/* ----- chefes das fases 3 e 4 ----- */
+const BK=()=>({3:'mod',4:'cred'})[FASE()]||'ar';
+function credMesh(){const g=new THREE.Group(),M=(c,e)=>new THREE.MeshStandardMaterial({color:c,metalness:.2,roughness:.55,emissive:e||0x000000,emissiveIntensity:.6});
+ const add=(geo,m,x,y,z)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;g.add(o);return o;};
+ add(new THREE.BoxGeometry(3.4,.8,2.6),M(0x1b3a2a),0,.4,0);add(new THREE.BoxGeometry(2.8,2.8,2),M(0x2a5a3c,0x0a2a14),0,2.2,0);
+ const c=document.createElement('canvas');c.width=512;c.height=300;const x=c.getContext('2d');x.fillStyle='#021208';x.fillRect(0,0,512,300);x.fillStyle='#7dff9a';x.font='bold 40px monospace';x.textAlign='center';x.fillText('CRÉDITOS DE',256,100);x.fillText('COMPENSAÇÃO',256,150);x.font='28px monospace';x.fillText('120.000 árvores',256,215);
+ const tx=new THREE.CanvasTexture(c);tx.colorSpace=THREE.SRGBColorSpace;const sc=new THREE.Mesh(new THREE.PlaneGeometry(2.3,1.35),new THREE.MeshBasicMaterial({map:tx}));sc.position.set(0,2.5,1.02);g.add(sc);
+ add(new THREE.BoxGeometry(.9,.16,.1),M(0x000000,0x7dff9a),0,1.4,1.02);
+ for(const s of[-1,1]){add(new THREE.CylinderGeometry(.22,.22,2.4,10),M(0x2a2f3a),s*1.9,2,.2);add(new THREE.SphereGeometry(.4,12,10),M(0x2a5a3c,0x7dff9a),s*1.9,3.3,.2);}
+ add(new THREE.SphereGeometry(.7,16,12,0,6.3,0,1.6),M(0x3a8a4c,0x2aff6a),0,3.7,0);
+ const l1=new THREE.PointLight(0x7dff9a,10,8,2);l1.position.set(0,2.6,2.2);g.add(l1);return g;}
+function modAnim(t){const m=Bo.mod;if(!m)return;m.rig.position.y=Math.sin(t*3)*.15;m.head.rotation.y=Math.sin(t*1.3)*.25;
+ if(t-(Bo.lt||0)>.2){Bo.lt=t;const s=m.sx;s.fillStyle='#050812';s.fillRect(0,0,m.SW,m.SH);const st_=Bo.stun>0,cc=st_?'#ff2a2a':'#3ff2ff',bl=(t%4)<.15;s.fillStyle=cc;
+  if(!bl){s.fillRect(230,190,170,150);s.fillRect(620,190,170,150);}else{s.fillRect(230,260,170,16);s.fillRect(620,260,170,16);}
+  for(let i=0;i<20;i++){const h=20+Math.abs(Math.sin(t*5+i))*(st_?10:80);s.fillRect(180+i*34,560-h,22,h);}
+  s.fillStyle='#ff2bd6';s.font='bold 56px monospace';s.textAlign='center';s.fillText(st_?'ERRO 429':'MODERANDO',512,100);m.screenTex.needsUpdate=true;}}
+function credAnim(t){if(Bo.m)Bo.m.children[0].rotation.z=Math.sin(t*2)*.01;}
+async function startBossX(){const k=BK();await startBoss();if(k==='ar'){Bo.kind='ar';Bo.nome='ARANHA';return;}
+ Bo.kind=k;Bo.mt=1e9;sceneR.remove(Bo.m);const g=new THREE.Group();
+ if(k==='mod'){const md=moderador();Bo.mod=md;md.boss.scale.setScalar(.4);md.boss.traverse(o=>{if(o.isMesh&&o.material&&o.material.metalness>.4){o.material.metalness=.3;o.material.emissive=o.material.emissive||new THREE.Color();}});g.add(md.boss);
+  const a=new THREE.PointLight(0x3ff2ff,14,10,2);a.position.set(0,3,2);g.add(a);const b=new THREE.PointLight(0xff2bd6,10,10,2);b.position.set(0,2,-2);g.add(b);Bo.nome='MODERADOR';Bo.max=1500;Bo.win='O Moderador saiu do ar. Iara: "Anota isso na ata."';}
+ else{g.add(credMesh());Bo.nome='MÁQUINA DE CRÉDITOS';Bo.max=1800;Bo.win='A máquina parou de emitir crédito. Iara: "Anota isso no relatório."';}
+ Bo.m=g;g.position.copy(Bo.p);sceneR.add(g);Bo.hp=Bo.max;Bo.ph=100;
+ toast(k==='mod'?'Bit: ele moderou a sua entrada. Não desvie dos círculos, saia deles.':'Bit: a máquina emite créditos em cima de você. Fica fora dos círculos.',6500);}
+const boss0=A.boss;A.boss=()=>{const k=BK();if(k==='ar')return boss0();
+ ui(k==='mod'?`<h2 style="color:#ff4fd8">O Moderador</h2><p>Quando uma audiência corre mal, o Consórcio ativa o Moderador. Ele decide quem fala, por quanto tempo e quem sai da transmissão. O que ele remove deixa de ter existido para a ata.</p><p>Objetivo: derrubar o Moderador antes que ele derrube você.</p>`:`<h2 style="color:#ff4fd8">Máquina de Créditos</h2><p>Para cada tonelada emitida, o Consórcio compra um crédito de plantio em outro lugar. A máquina faz essa conta e a executa em cima de quem estiver no caminho.</p><p>Objetivo: derrubar a máquina antes que ela derrube você.</p>`
+  +`<h3>Como jogar</h3><p>WASD: mover · Espaço: jogar página do caderno (cada observação aumenta o dano)<br>Círculos vermelhos no chão: golpe em 1 segundo, saia de dentro. Linha vermelha: avanço, e depois do avanço ele fica tonto e leva o dobro.</p>`+bt('bossgo','Entrar em combate','','on')+bt('close','Voltar'));};
+A.bossgo=startBossX;
+
 /* ================= LOOP ================= */
 const dicaEl=document.createElement('div');dicaEl.className='sm';dicaEl.style.cssText='position:fixed;left:12px;bottom:8px;z-index:4;color:#7fb;opacity:.8;font-size:.72em;pointer-events:none';document.body.appendChild(dicaEl);
-const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started)return;
+const keys={};addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();keys[k]=1;if(!started||MS.on)return;
  if(k==='escape'){if(F.on||Bo.on)return;if(modo==='feed'){closeUI();sairFeed();}else if(uiOpen)closeUI();}
  if(modo==='sala'&&!uiOpen){if((k==='e'||k==='enter'||k===' ')&&!Bo.on)interact();if(k==='q')camAT-=Math.PI/2;if(k==='r')camAT+=Math.PI/2;if(k==='z')CAM.elev=Math.max(.25,CAM.elev-.15);if(k==='x')CAM.elev=Math.min(1.7,CAM.elev+.15);if(k==='c'){CAM.elev=.82;camAT=Math.PI/4;CAM.zoom=9;resize();}if(k==='+'||k==='='){CAM.zoom=Math.max(5,CAM.zoom*.9);resize();}if(k==='-'){CAM.zoom=Math.min(16,CAM.zoom*1.1);resize();}}
  if(modo==='feed'&&!uiOpen&&!F.on){const pr={'1':[3,-.04],'2':[14,-.3],'3':[70,-1.0]}[k];if(pr){dr.go=null;dr.y=pr[0];dr.pitch=pr[1];toast({'1':'Visão rente ao chão','2':'Voo rasante','3':'Visão alta'}[k],1500);}}
@@ -2310,6 +2657,7 @@ const mk=document.createElement('canvas');mk.width=mk.height=64;{const x=mk.getC
 const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(mk),transparent:true,depthTest:false}));marker.scale.setScalar(.45);marker.renderOrder=9;sceneR.add(marker);
 const tmpM=new THREE.Matrix4(),tmpQ=new THREE.Quaternion(),tmpS=new THREE.Vector3(1,1,1);
 function update(dt,t){
+ if(MS.on){mUpdate(dt);return;}
  if(modo==='sala'){let ix=0,iy=0;if(started&&!uiOpen){ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);iy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);}
   pl.mv=0;if(ix||iy){const fx=-Math.cos(camA),fz=-Math.sin(camA),rx=-fz,rz=fx;let vx=rx*ix-fx*iy,vy=rz*ix-fz*iy;const l=Math.hypot(vx,vy);vx=vx/l*3*dt;vy=vy/l*3*dt;
    if(!hit(pl.x+vx,pl.y))pl.x+=vx;if(!hit(pl.x,pl.y+vy))pl.y+=vy;pl.mv=1;pl.ph+=dt*9;yawT=Math.atan2(vx,vy);}
@@ -2333,7 +2681,7 @@ function update(dt,t){
   {const d='';if(dicaEl.textContent!==d)dicaEl.textContent=d;}
   camC.position.set(dr.x,dr.y,dr.z+Math.sin(t*1.3)*.15);const f=new THREE.Vector3(-Math.sin(dr.yaw)*Math.cos(dr.pitch),Math.sin(dr.pitch),-Math.cos(dr.yaw)*Math.cos(dr.pitch));camC.lookAt(camC.position.clone().add(f));
   if(sceneC.userData.cityUpd)sceneC.userData.cityUpd(dt);
-  {const bk=sceneC.userData.bike,q2=sceneC.userData.q2;if(bk){const z=((t*6)%260)-130;bk.position.set(CPOS.bikeX,1.4,z);if(q2)q2.pos.set(CPOS.bikeX,4,z);bk.visible=!!st.f2;}}
+  {const bk=sceneC.userData.bike,q2=sceneC.userData.q2;if(bk){const z=((t*6)%260)-130;bk.position.set(CPOS.bikeX,1.4,z);if(q2)q2.pos.set(CPOS.bikeX,4,z);bk.visible=FASE()===2;}}
   $('#alt').textContent=Math.round(dr.y);const d=new Date(2031,2,14,3,12,0,0);d.setSeconds(Math.floor(t));$('#ts').textContent=d.toLocaleString('pt-BR');marcadores();}
 }
 
@@ -2348,11 +2696,18 @@ for(const h of hot){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160
  hot.push({id:'q1',pos:CPOS.q1.clone(),nome:'Centro de distribuição',f:2},q2,{id:'q3',pos:CPOS.q3.clone(),nome:'Portão de serviço',f:2},{id:'q4',pos:CPOS.q4.clone(),nome:'Painel de vagas',f:2});q2.f=2;sceneC.userData.q2=q2;
  for(const h of hot)if(h.f===2){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:0xffb13b,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);bm.visible=false;sceneC.add(bm);h.beam=bm;}}
 
+/* ===== hotspots das Fases 3 a 5 ===== */
+{const fx=CPOS.fx,mk3=(f,cor,L)=>L.forEach(([id,nome,i,y,k,mis])=>{const h={id,nome,pos:fx(i,y,k),f};if(mis)h.mis=mis;hot.push(h);
+  const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:cor,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);bm.visible=false;sceneC.add(bm);h.beam=bm;});
+ mk3(3,0xff4fd8,[['r1','Sala da audiência',4,10,3],['r2','Totem de inscrição',7,6,4],['r3','Faixa da consulta',2,8,2],['r4','Beco dos moradores',1,5,5,{txt:'Os moradores do entorno da Casa 17 fizeram o próprio registro das famílias. Para buscá-lo, o drone atravessa o beco e passa pelos seguranças do Consórcio, que usam soldados e drones de patrulha.',titulo:'Missão de campo · Beco dos moradores',len:4200,seed:3,cor:'#ff4fd8'}]]);
+ mk3(4,0x7dff9a,[['s1','Estação de monitoramento',4,8,2],['s2','Aterro da borda',8,6,8],['s3','Usina a gás',0,8,0],['s4','Canteiro de créditos',8,6,5,{txt:'O terreno que o Consórcio apresenta como plantio de compensação fica atrás de uma cerca de obra, vigiado por patrulhas. O drone precisa atravessar o percurso para conferir o que existe lá.',titulo:'Missão de campo · Canteiro de créditos',len:5200,seed:5,cor:'#7dff9a'}]]);
+ mk3(5,0x00e5d8,[['t1','Água',4,3,6],['t2','Quem mantém a cidade acesa',8,5,1],['t3','O que a cidade descarta',8,6,8]]);}
+
 rp=new RenderPass(sceneR,camR);
 composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:4}));composer.addPass(rp);bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.6,.6,.9);composer.addPass(bloom);composer.addPass(new OutputPass());resize();
 upObj();
 let last=0;function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;update(dt,ts/1000);composer.render();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 $('#go').disabled=false;$('#go').textContent='COMEÇAR';
 $('#go').onclick=()=>{started=true;$('#title').style.display='none';setTimeout(()=>A.ajuda(),300);};
-window.DBG={npcU:npcUpd,NP,bu:bossUpdate,Bo,startBoss,fu:fightUpdate,keys,F,hit,TG,st,pl,dr,THREE,sceneR,sceneC,camC,camR,enter:entrarFeed,start:()=>$('#go').click(),hot};
+window.DBG={npcU:npcUpd,NP,bu:bossUpdate,Bo,startBoss,fu:fightUpdate,keys,F,hit,TG,st,pl,dr,THREE,sceneR,sceneC,camC,camR,enter:entrarFeed,start:()=>$('#go').click(),hot,A,MS,startMissao,iniciar,mFim};
 })();
