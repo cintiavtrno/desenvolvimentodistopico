@@ -2490,6 +2490,655 @@ const turrets=[];
 
 return {boss,rig,head,arms,turrets,speakers,edgeLeds,vu,sx,scv,screenTex,SW,SH};}
 
+/*
+ * pessoas.js — pessoas low-poly procedurais para Three.js (r128+; testado em r147)
+ * ------------------------------------------------------------------------------
+ * Convenções
+ *   - Unidades em metros. Adulto ~1,75 m com escala 1. Frente = +Z. Cima = +Y.
+ *   - "E" = esquerda da pessoa (+X), "D" = direita (-X).
+ *   - Geometrias são compartilhadas entre todas as pessoas (cache por THREE);
+ *     cada pessoa tem os próprios materiais (cor/trocas independentes).
+ *   - ~700 triângulos por pessoa (≈ 25–30 meshes), sem texturas.
+ *
+ * Uso rápido
+ *   const p = Pessoas.criar(THREE, { tipo: 'entregador' });
+ *   scene.add(p.grupo);
+ *   // no loop:
+ *   Pessoas.animar(p, tempo, dt, { pose: 'andar', velocidade: 1.3 });
+ *
+ *   Pessoas.atualizarCores(p, { blusa: 0xff0000, calca: 0x223344 });
+ *   const clone = Pessoas.clonar(THREE, p, { escala: 1.05, cores: { blusa: 0x00aa55 } });
+ *   const gente = Pessoas.aleatoria(THREE, 'morador', Pessoas.rng(42));
+ *
+ * Tipos:  base | entregador | faixineira | morador | executivo | seguranca
+ * Poses:  parado | andar | correr | sentado | caixa | celular | pedalar | moto
+ *
+ * Opções de criar(): ver o objeto DEFAULTS e PERFIS abaixo (tudo sobrescrevível).
+ */
+/* versão ES module: import Pessoas from './pessoas.mjs'; */
+const factory = function () {
+'use strict';
+
+const PI = Math.PI;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = (t) => t * t * (3 - 2 * t);
+
+/* ---------------------------------------------------------------- paletas */
+const PELES = [0xf3d0b0, 0xe6b88f, 0xcf9468, 0xad7048, 0x82502f, 0x5a3622];
+const CABELOS = [0x15100d, 0x2b1b12, 0x4b3220, 0x7b5a38, 0xb9b2a6];
+const ROUPA_VIVA = [0xd94f3d, 0x3d7fd9, 0x3da66a, 0xe0b030, 0x8a5cc2, 0xe07a9a, 0x2f9aa6, 0xf08a3a];
+const ROUPA_NEUTRA = [0x2c3138, 0x55606d, 0x8a7a66, 0xd8d3c8, 0x3b4a6b, 0x6b3d3d];
+const JEANS = [0x2f4466, 0x3c5683, 0x1f2a3d, 0x4a5a73];
+
+/* ---------------------------------------------------------------- padrões */
+const DEFAULTS = {
+  tipo: 'base', genero: 'f', idade: 'adulto',
+  escala: 1, altura: 1, corpulencia: 1,
+  pele: 0xcf9468, cabelo: 0x2b1b12, estiloCabelo: 'curto', // curto|crespo|longo|coque|trancas|careca
+  cores: { blusa: 0x55606d, calca: 0x2f4466, sapato: 0x222222, acento: 0xd94f3d },
+  manga: 'curta',            // curta | longa
+  calcaTipo: 'longa',        // longa | bermuda
+  chapeu: 'nenhum',          // nenhum | bone | capacete | touca
+  acessorios: [],            // mochila avental colete gravata balde rodo sacola maleta radio
+  veiculo: 'a_pe',           // a_pe | bike | moto   (só define a pose padrão)
+  filho: false,              // morador: cria criança de mão dada
+  pose: 'parado',
+  material: 'standard',      // standard (facetado) | lambert (mais leve) | basic
+  rosto: true,
+  geom: null                 // geometria do veículo (ver GEOM_*)
+};
+const PERFIS = {
+  base: {},
+  entregador: { genero: 'm', cores: { blusa: 0x2b2f36, calca: 0x1f2a3d, sapato: 0x1a1a1a, acento: 0xe8472b },
+    chapeu: 'capacete', acessorios: ['mochila'], veiculo: 'bike', estiloCabelo: 'curto', manga: 'curta' },
+  faxineira: { genero: 'f', cores: { blusa: 0x4f9fd1, calca: 0x2f3f5a, sapato: 0xe8e8e8, acento: 0xf2f2f2 },
+    chapeu: 'touca', acessorios: ['avental', 'balde'], estiloCabelo: 'coque', manga: 'curta' },
+  morador: { genero: 'f', cores: { blusa: 0xd94f3d, calca: 0x3c5683, sapato: 0x5a4636, acento: 0xe0b030 },
+    acessorios: ['sacola'], estiloCabelo: 'crespo' },
+  executivo: { genero: 'm', cores: { blusa: 0x25304a, calca: 0x25304a, sapato: 0x101010, acento: 0xa8283a },
+    acessorios: ['gravata', 'maleta'], manga: 'longa', estiloCabelo: 'curto' },
+  seguranca: { genero: 'm', cores: { blusa: 0xe8e8e8, calca: 0x1d2128, sapato: 0x101010, acento: 0xc8e63a },
+    chapeu: 'bone', acessorios: ['colete', 'radio'], manga: 'curta', estiloCabelo: 'careca' }
+};
+/* geometria do veículo no referencial do quadril (z frente, y cima) */
+const GEOM_BIKE = { cz: 0.2, cy: -0.65, r: 0.16, bz: 0.52, by: 0.05 };
+const GEOM_MOTO = { pz: 0.34, py: -0.5, bz: 0.6, by: 0.16 };
+
+/* ------------------------------------------------------------------ rng */
+function rng(seed) { /* mulberry32 */
+  let a = (seed >>> 0) || 1;
+  return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+/* --------------------------------------------------------------- geometrias */
+const cache = new WeakMap();
+function geos(T) {
+  let g = cache.get(T); if (g) return g;
+  g = {
+    box: new T.BoxGeometry(1, 1, 1),
+    membro: new T.CylinderGeometry(1, 0.72, 1, 5, 1).translate(0, -0.5, 0),      /* topo em y=0, desce */
+    torso: new T.CylinderGeometry(1, 0.8, 1, 8, 1).translate(0, 0.5, 0),          /* base em y=0, sobe */
+    pelve: new T.CylinderGeometry(0.88, 1, 1, 8, 1),
+    esf: new T.SphereGeometry(1, 6, 4),
+    cabeca: new T.SphereGeometry(1, 8, 6),
+    pesc: new T.CylinderGeometry(1, 1, 1, 5, 1).translate(0, 0.5, 0),
+    hemi: new T.SphereGeometry(1, 8, 4, 0, PI * 2, 0, PI / 2),
+    cil: new T.CylinderGeometry(1, 1, 1, 8, 1),
+    balde: new T.CylinderGeometry(1, 0.78, 1, 8, 1),
+    pe: new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0.3)
+  };
+  cache.set(T, g); return g;
+}
+
+/* --------------------------------------------------------------- materiais */
+function mkMat(T, kind, c, rough) {
+  if (kind === 'lambert') return new T.MeshLambertMaterial({ color: c });
+  if (kind === 'basic') return new T.MeshBasicMaterial({ color: c });
+  return new T.MeshStandardMaterial({ color: c, roughness: rough == null ? 0.85 : rough, metalness: 0, flatShading: true });
+}
+
+/* ------------------------------------------------------- resolver opções */
+function resolver(op) {
+  op = op || {};
+  const tipo = op.tipo || 'base';
+  const pf = PERFIS[tipo] || {};
+  const o = Object.assign({}, DEFAULTS, pf, op);
+  o.cores = Object.assign({}, DEFAULTS.cores, pf.cores || {}, op.cores || {});
+  o.tipo = tipo;
+  if (op.pose == null) o.pose = o.veiculo === 'bike' ? 'pedalar' : o.veiculo === 'moto' ? 'moto' : (pf.pose || 'parado');
+  if (o.veiculo === 'a_pe' && (o.pose === 'pedalar' || o.pose === 'moto')) o.pose = 'parado';
+  return o;
+}
+
+/* =================================================================== CRIAR */
+function criar(T, op) {
+  const o = resolver(op);
+  const G = geos(T);
+  const kid = o.idade === 'crianca';
+  const K = kid ? { p: 0.78, t: 0.9, c: 1.38, b: 0.82, l: 0.9 } : { p: 1, t: 1, c: 1, b: 1, l: 1 };
+  const fem = o.genero === 'f';
+  const corp = o.corpulencia, alt = o.altura;
+  const larg = (fem ? 0.93 : 1.06) * K.l * corp;
+  const quad = (fem ? 1.1 : 0.96) * K.l * corp;
+  const D = {
+    L1: 0.43 * K.p * alt, L2: 0.43 * K.p * alt, pe: 0.07 * K.p * alt,
+    torso: 0.5 * K.t * alt, A1: 0.29 * K.b * alt, A2: 0.27 * K.b * alt,
+    sw: 0.2 * larg, hw: 0.095 * quad, cab: 0.115 * K.c, pesc: 0.07, corp
+  };
+  D.quadH = D.L1 + D.L2 + D.pe;
+  D.alturaTotal = (D.quadH + 0.07 + D.torso + D.pesc + D.cab * 2) * o.escala;
+
+  const mat = {
+    pele: mkMat(T, o.material, o.pele), cabelo: mkMat(T, o.material, o.cabelo),
+    blusa: mkMat(T, o.material, o.cores.blusa), calca: mkMat(T, o.material, o.cores.calca),
+    sapato: mkMat(T, o.material, o.cores.sapato, 0.6), acento: mkMat(T, o.material, o.cores.acento),
+    extra: mkMat(T, o.material, 0xe9e9e4), olho: mkMat(T, o.material, 0x15100d),
+    papelao: mkMat(T, o.material, 0xb88a56)
+  };
+  const mesh = (geo, m, par, sx, sy, sz, x, y, z) => {
+    const me = new T.Mesh(geo, m); me.scale.set(sx, sy, sz); me.position.set(x || 0, y || 0, z || 0);
+    if (par) par.add(me); return me;
+  };
+  const grp = (par, x, y, z) => { const g = new T.Group(); g.position.set(x || 0, y || 0, z || 0); if (par) par.add(g); return g; };
+
+  const grupo = new T.Group(); grupo.scale.setScalar(o.escala);
+  const corpo = grp(grupo, 0, D.quadH, 0);
+  mesh(G.pelve, mat.calca, corpo, D.hw * 2.05, 0.17, 0.125 * corp * K.l, 0, 0.0, 0);
+
+  /* pernas */
+  const pernaPele = o.calcaTipo === 'bermuda';
+  const pernas = [];
+  [1, -1].forEach((s) => {
+    const coxa = grp(corpo, s * D.hw, 0, 0);
+    mesh(G.membro, mat.calca, coxa, 0.085 * corp * K.l, D.L1, 0.085 * corp * K.l);
+    const joelho = grp(coxa, 0, -D.L1, 0);
+    mesh(G.membro, pernaPele ? mat.pele : mat.calca, joelho, 0.062 * corp * K.l, D.L2, 0.062 * corp * K.l);
+    const pe = grp(joelho, 0, -D.L2, 0);
+    mesh(G.pe, mat.sapato, pe, 0.1 * K.l, D.pe, 0.27 * K.p);
+    pernas.push({ coxa, joelho, pe });
+  });
+
+  /* tronco */
+  const tronco = grp(corpo, 0, 0.07, 0);
+  const torsoMesh = mesh(G.torso, mat.blusa, tronco, D.sw * 1.12, D.torso, 0.13 * corp * K.l);
+  const ombY = D.torso - 0.07;
+  const bracos = [];
+  [1, -1].forEach((s) => {
+    const ombro = grp(tronco, s * D.sw, ombY, 0);
+    mesh(G.esf, mat.blusa, ombro, 0.06 * corp * K.b, 0.06 * corp * K.b, 0.06 * corp * K.b);
+    mesh(G.membro, mat.blusa, ombro, 0.052 * corp * K.b, D.A1, 0.052 * corp * K.b);
+    const cot = grp(ombro, 0, -D.A1, 0);
+    mesh(G.membro, o.manga === 'longa' ? mat.blusa : mat.pele, cot, 0.04 * corp * K.b, D.A2, 0.04 * corp * K.b);
+    const mao = grp(cot, 0, -D.A2, 0);
+    mesh(G.esf, mat.pele, mao, 0.045 * K.b, 0.05 * K.b, 0.04 * K.b, 0, -0.03, 0);
+    bracos.push({ ombro, cot, mao });
+  });
+
+  /* pescoço e cabeça */
+  mesh(G.pesc, mat.pele, tronco, 0.045, D.pesc + 0.02, 0.045, 0, D.torso - 0.01, 0);
+  const cabeca = grp(tronco, 0, D.torso + D.pesc + D.cab * 0.9, 0);
+  const H = D.cab;
+  mesh(G.cabeca, mat.pele, cabeca, H * 0.92, H * 1.08, H, 0, 0, 0);
+  if (o.rosto) {
+    [1, -1].forEach((s) => mesh(G.box, mat.olho, cabeca, H * 0.2, H * 0.22, H * 0.1, s * H * 0.36, H * 0.08, H * 0.9));
+  }
+  const cab = o.estiloCabelo;
+  if (cab === 'curto') mesh(G.hemi, mat.cabelo, cabeca, H * 1.0, H * 0.95, H * 1.08, 0, H * 0.12, -H * 0.06).rotation.x = -0.25;
+  else if (cab === 'crespo') mesh(G.cabeca, mat.cabelo, cabeca, H * 1.28, H * 1.12, H * 1.22, 0, H * 0.28, -H * 0.15);
+  else if (cab === 'longo') {
+    mesh(G.hemi, mat.cabelo, cabeca, H * 1.04, H * 1.0, H * 1.1, 0, H * 0.1, -H * 0.08).rotation.x = -0.3;
+    mesh(G.membro, mat.cabelo, cabeca, H * 0.95, H * 2.3, H * 0.4, 0, H * 0.35, -H * 0.82);
+  } else if (cab === 'coque') {
+    mesh(G.hemi, mat.cabelo, cabeca, H * 1.0, H * 0.95, H * 1.06, 0, H * 0.12, -H * 0.06).rotation.x = -0.3;
+    mesh(G.esf, mat.cabelo, cabeca, H * 0.42, H * 0.42, H * 0.42, 0, H * 1.0, -H * 0.55);
+  } else if (cab === 'trancas') {
+    mesh(G.hemi, mat.cabelo, cabeca, H * 1.04, H * 1.0, H * 1.08, 0, H * 0.12, -H * 0.06).rotation.x = -0.3;
+    [-0.6, -0.2, 0.2, 0.6].forEach((x) => mesh(G.membro, mat.cabelo, cabeca, H * 0.2, H * 1.4, H * 0.2, x * H, H * 0.0, -H * 0.95));
+  }
+  const ch = o.chapeu;
+  if (ch === 'bone') {
+    mesh(G.hemi, mat.calca, cabeca, H * 1.1, H * 0.95, H * 1.12, 0, H * 0.22, 0);
+    mesh(G.box, mat.calca, cabeca, H * 1.0, H * 0.07, H * 0.8, 0, H * 0.34, H * 1.05);
+  } else if (ch === 'capacete') {
+    mesh(G.hemi, mat.acento, cabeca, H * 1.2, H * 1.05, H * 1.25, 0, H * 0.14, -H * 0.04);
+    mesh(G.box, mat.olho, cabeca, H * 1.0, H * 0.28, H * 0.12, 0, H * 0.5, H * 1.06);
+  } else if (ch === 'touca') {
+    mesh(G.hemi, mat.acento, cabeca, H * 1.07, H * 0.9, H * 1.12, 0, H * 0.2, -H * 0.04).rotation.x = -0.2;
+  }
+
+  /* acessórios */
+  const ac = {};
+  const A = o.acessorios;
+  if (A.indexOf('mochila') >= 0) {
+    const g = grp(tronco, 0, D.torso * 0.5, -0.125 * corp - 0.16); ac.mochila = g;
+    mesh(G.box, mat.acento, g, 0.38, 0.44, 0.3);
+    mesh(G.box, mat.extra, g, 0.2, 0.2, 0.012, 0, 0.0, -0.155);
+    [1, -1].forEach((s) => mesh(G.box, mat.calca, tronco, 0.05, D.torso * 0.75, 0.02, s * D.sw * 0.55, D.torso * 0.52, 0.13 * corp * K.l + 0.005));
+  }
+  if (A.indexOf('colete') >= 0) {
+    const h = D.torso * 0.84, y0 = 0.09;
+    mesh(G.torso, mat.acento, tronco, D.sw * 1.2, h, 0.155 * corp * K.l, 0, y0, 0.0);
+    [0.3, 0.62].forEach((f) => {
+      const yy = y0 + h * f, r = (0.8 + 0.2 * f) * 1.2 * D.sw * 1.02;
+      mesh(G.torso, mat.extra, tronco, r, 0.035, 0.157 * corp * K.l * (0.8 + 0.2 * f) * 1.02, 0, yy, 0);
+    });
+  }
+  if (A.indexOf('avental') >= 0) {
+    mesh(G.box, mat.acento, tronco, D.sw * 1.75, D.torso * 0.62, 0.02, 0, D.torso * 0.12, 0.13 * corp * K.l + 0.012);
+    mesh(G.box, mat.acento, corpo, D.hw * 3.3, 0.38 * D.L1 / 0.43, 0.02, 0, -0.2, 0.125 * corp * K.l + 0.012);
+  }
+  if (A.indexOf('gravata') >= 0) {
+    mesh(G.box, mat.acento, tronco, 0.05, D.torso * 0.58, 0.02, 0, D.torso * 0.28, 0.13 * corp * K.l + 0.012);
+    mesh(G.box, mat.extra, tronco, 0.13, D.torso * 0.14, 0.018, 0, D.torso * 0.78, 0.13 * corp * K.l + 0.01);
+  }
+  if (A.indexOf('radio') >= 0) mesh(G.box, mat.olho, tronco, 0.05, 0.11, 0.035, -D.sw * 0.55, D.torso * 0.72, 0.16 * corp * K.l);
+  if (A.indexOf('sacola') >= 0) {
+    const g = grp(bracos[1].mao, 0, -0.03, 0.02); ac.sacola = g;
+    mesh(G.box, mat.acento, g, 0.26, 0.3, 0.13, 0, -0.22, 0);
+    mesh(G.box, mat.extra, g, 0.1, 0.1, 0.005, 0, -0.2, 0.07);
+    mesh(G.cil, mat.olho, g, 0.012, 0.1, 0.012, 0.06, -0.05, 0);
+    mesh(G.cil, mat.olho, g, 0.012, 0.1, 0.012, -0.06, -0.05, 0);
+  }
+  if (A.indexOf('balde') >= 0) {
+    const g = grp(bracos[1].mao, 0, -0.03, 0.02); ac.balde = g;
+    mesh(G.balde, mat.acento, g, 0.12, 0.26, 0.12, 0, -0.38, 0);
+    mesh(G.cil, mat.olho, g, 0.1, 0.012, 0.1, 0, -0.12, 0);
+  }
+  if (A.indexOf('rodo') >= 0) {
+    const g = grp(bracos[0].mao, 0, -0.04, 0.0); ac.rodo = g;
+    const hs = mesh(G.cil, mat.extra, g, 0.014, 1.15, 0.014, 0, 0.15, 0.0);
+    mesh(G.box, mat.acento, g, 0.4, 0.04, 0.07, 0, -0.42, 0);
+  }
+  if (A.indexOf('maleta') >= 0) {
+    const g = grp(bracos[0].mao, 0, -0.04, 0); ac.maleta = g;
+    mesh(G.box, mat.olho, g, 0.05, 0.3, 0.4, 0, -0.22, 0);
+    mesh(G.box, mat.olho, g, 0.1, 0.02, 0.1, 0, -0.06, 0);
+  }
+  /* celular (pose celular) */
+  { const g = grp(bracos[1].mao, 0, -0.04, 0.02); ac.celular = g;
+    mesh(G.box, mat.olho, g, 0.075, 0.15, 0.014, 0, -0.04, 0.0);
+    mesh(G.box, mkMat(T, 'basic', 0x9ad0ff), g, 0.062, 0.128, 0.004, 0, -0.04, 0.009);
+    g.visible = false; }
+  /* caixa (pose caixa) */
+  const caixa = grp(tronco, 0, D.torso * 0.52, 0.31 * D.sw / 0.2 * 0.9);
+  mesh(G.box, mat.papelao, caixa, 0.4, 0.3, 0.32);
+  mesh(G.box, mat.extra, caixa, 0.06, 0.302, 0.322);
+  caixa.visible = false; ac.caixa = caixa;
+
+  const p = {
+    grupo, corpo, tronco, cabeca, pernas, bracos, mat, acessorios: ac, caixa, dim: D,
+    opcoes: o, pose: o.pose, alturaAssento: 0.5, alturaQuadril: D.quadH * o.escala,
+    estado: { fase: Math.random() * PI * 2, pose: null, w: 1, snap: null, out: null, off: Math.random() * 100, t: 0 }
+  };
+
+  /* criança de mão dada */
+  if (o.filho && !kid) {
+    const f = criar(T, {
+      tipo: 'base', idade: 'crianca', genero: Math.random() < 0.5 ? 'f' : 'm', escala: 0.66,
+      pele: o.pele, cabelo: o.cabelo, estiloCabelo: Math.random() < 0.5 ? 'crespo' : 'curto',
+      cores: { blusa: ROUPA_VIVA[(Math.random() * ROUPA_VIVA.length) | 0], calca: JEANS[(Math.random() * JEANS.length) | 0], sapato: 0xf0f0f0, acento: 0xffffff },
+      calcaTipo: 'bermuda', acessorios: [], material: o.material
+    });
+    f.grupo.position.set(0.5, 0, 0.02);
+    f.maoDada = true;
+    grupo.add(f.grupo);
+    p.filho = f;
+  }
+  animar(p, 0, 0, { pose: o.pose });
+  return p;
+}
+
+/* ==================================================================== IK */
+/* ângulos "para frente" a partir da vertical, plano sagital (z frente, y cima) */
+function ik2(L1, L2, tz, ty, dir) {
+  let d = Math.hypot(tz, ty);
+  const mx = L1 + L2 - 1e-3, mn = Math.abs(L1 - L2) + 1e-3;
+  if (d > mx) { tz *= mx / d; ty *= mx / d; d = mx; }
+  if (d < mn) { tz *= mn / d; ty *= mn / d; d = mn; }
+  const base = Math.atan2(tz, -ty);
+  const A = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+  const t1 = base + dir * A;
+  const z1 = L1 * Math.sin(t1), y1 = -L1 * Math.cos(t1);
+  const t2 = Math.atan2(tz - z1, -(ty - y1));
+  return [t1, t2];
+}
+/* ponto do referencial do quadril -> referencial do tronco (com inclinação) */
+function paraTronco(lean, z, y) {
+  const yp = y - 0.07, c = Math.cos(lean), s = Math.sin(lean);
+  return [-yp * s + z * c, yp * c + z * s];
+}
+function bracoPara(p, out, lado, zT, yT) { /* alvo no referencial do tronco */
+  const D = p.dim, r = ik2(D.A1, D.A2, zT, yT - (D.torso - 0.07), -1);
+  const k = lado > 0 ? 'E' : 'D';
+  let dc = r[1] - r[0]; while (dc < -PI) dc += 2 * PI; while (dc > PI) dc -= 2 * PI;
+  out['ombro' + k + 'f'] = r[0]; out['cot' + k] = dc;
+}
+function pernaPara(p, out, lado, zT, yT) { /* alvo do tornozelo rel. ao quadril */
+  const D = p.dim, r = ik2(D.L1, D.L2, zT, yT, 1);
+  const k = lado > 0 ? 'E' : 'D';
+  let dj = r[0] - r[1]; while (dj < -PI) dj += 2 * PI; while (dj > PI) dj -= 2 * PI;
+  out['coxa' + k + 'f'] = r[0]; out['joe' + k] = dj;
+}
+
+/* ============================================================ pose -> alvo */
+function nova() {
+  return { quadX: 0, quadY: null, quadZ: 0, corpoRz: 0, lean: 0, twist: 0, roll: 0,
+    coxaEf: 0, coxaDf: 0, coxaEz: 0.02, coxaDz: 0.02, joeE: 0.05, joeD: 0.05,
+    ombroEf: 0, ombroDf: 0, ombroEz: 0.07, ombroDz: 0.07, cotE: 0.12, cotD: 0.12,
+    cabX: 0, cabY: 0, cabZ: 0, peOffE: 0, peOffD: 0 };
+}
+function ciclo(p, S, out, v, correr, leve) {
+  const D = p.dim, Lm = D.L1 + D.L2;
+  const esc = (function () { let s = 1; for (let o = p.grupo; o; o = o.parent) s *= o.scale.x; return s; })();
+  const vl = Math.max(0.01, v / esc);
+  const A = correr ? clamp(0.5 + 0.08 * vl, 0.55, 0.85) : clamp(0.28 + 0.1 * vl, 0.28, 0.48) * (leve ? 0.7 : 1);
+  const f = clamp(vl / (4 * Lm * Math.sin(A)), 0.35, 4);
+  S.fase += S.dt * f * PI * 2;
+  const ph = S.fase, s1 = Math.sin(ph), s2 = -s1;
+  out.coxaEf = A * s1; out.coxaDf = A * s2;
+  const kmax = correr ? 1.55 : 0.95;
+  out.joeE = 0.08 + kmax * Math.pow(Math.max(0, Math.cos(ph - 0.35)), 2);
+  out.joeD = 0.08 + kmax * Math.pow(Math.max(0, Math.cos(ph + PI - 0.35)), 2);
+  const braco = correr ? 0.95 : 0.6;
+  out.ombroEf = -s1 * A * braco * 1.2; out.ombroDf = -s2 * A * braco * 1.2;
+  out.cotE = (correr ? 1.3 : 0.2) + 0.25 * Math.max(0, out.ombroEf);
+  out.cotD = (correr ? 1.3 : 0.2) + 0.25 * Math.max(0, out.ombroDf);
+  out.twist = (correr ? 0.22 : 0.12) * s1;
+  out.lean = correr ? 0.22 : 0.04;
+  out.quadX = 0.018 * s1; out.corpoRz = 0.035 * s1;
+  out.cabY = -out.twist * 0.6; out.cabX = -out.lean * 0.6;
+  out.coxaEz = 0.03; out.coxaDz = 0.03;
+  /* pé: levantar o calcanhar na impulsão */
+  out.peOffE = Math.max(0, -out.coxaEf) * 0.5; out.peOffD = Math.max(0, -out.coxaDf) * 0.5;
+}
+function alvoPose(p, pose, S, v, op) {
+  const out = nova(), D = p.dim, t = S.t + S.off;
+  const mao = p.maoDada;
+  if (pose === 'parado') {
+    out.quadX = 0.012 * Math.sin(t * 0.6); out.corpoRz = 0.012 * Math.sin(t * 0.6);
+    out.coxaEf = 0.02 * Math.sin(t * 0.6); out.coxaDf = -0.02 * Math.sin(t * 0.6);
+    out.ombroEf = 0.03 * Math.sin(t * 1.1); out.ombroDf = -0.03 * Math.sin(t * 1.1);
+    out.lean = 0.02 + 0.01 * Math.sin(t * 1.7); out.cabY = 0.3 * Math.sin(t * 0.37); out.cabX = 0.04 * Math.sin(t * 0.5);
+  } else if (pose === 'andar' || pose === 'correr') {
+    ciclo(p, S, out, v, pose === 'correr', false);
+  } else if (pose === 'caixa') {
+    ciclo(p, S, out, Math.min(v, 1.0), false, true);
+    out.lean = -0.1; out.twist = 0; out.cabX = 0.1;
+    const zc = 0.31 * D.sw / 0.2 * 0.9, yc = D.torso * 0.52;
+    bracoPara(p, out, 1, zc * 0.9, yc); bracoPara(p, out, -1, zc * 0.9, yc);
+    out.ombroEz = 0.0; out.ombroDz = 0.0;
+  } else if (pose === 'celular') {
+    out.lean = 0.04; out.cabX = 0.4; out.cabY = 0.1 * Math.sin(t * 0.4);
+    out.quadX = 0.012 * Math.sin(t * 0.6);
+    bracoPara(p, out, -1, 0.2, D.torso + 0.03);
+    out.ombroDz = -0.05;
+  } else if (pose === 'sentado') {
+    const s = clamp(op && op.assento != null ? op.assento : p.alturaAssento, 0.3, 0.55);
+    const th = 1.5; /* coxa quase horizontal; joelho calculado p/ o pé tocar o chão */
+    const vv = clamp((s - D.pe - D.L1 * Math.cos(th)) / D.L2, -1, 1);
+    const kn = th - Math.acos(vv);
+    out.quadY = s; out.coxaEf = th; out.coxaDf = th; out.joeE = kn; out.joeD = kn;
+    out.coxaEz = 0.1; out.coxaDz = 0.1;
+    out.lean = 0.12 + 0.02 * Math.sin(t * 1.4); out.cabX = -0.05; out.cabY = 0.4 * Math.sin(t * 0.3);
+    const kz = D.L1 * Math.sin(th), ky = -D.L1 * Math.cos(th);
+    [1, -1].forEach((l) => { const q = paraTronco(out.lean, kz * 0.95, ky + 0.07 + 0.04); bracoPara(p, out, l, q[0], q[1]); });
+    out.ombroEz = 0.12; out.ombroDz = 0.12;
+  } else if (pose === 'pedalar') {
+    const g = Object.assign({}, GEOM_BIKE, p.opcoes.geom || {}), ped = S.cadencia != null ? S.cadencia : 0;
+    S.fase += S.dt * ped * PI * 2;
+    out.quadY = 0; out.lean = 0.55; out.cabX = -0.4;
+    [1, -1].forEach((l) => {
+      const psi = S.fase + (l > 0 ? 0 : PI);
+      pernaPara(p, out, l, g.cz + g.r * Math.sin(psi) - 0.02, g.cy - g.r * Math.cos(psi) + D.pe + 0.03);
+      const q = paraTronco(out.lean, g.bz, g.by); bracoPara(p, out, l, q[0], q[1]);
+    });
+    out.coxaEz = 0.06; out.coxaDz = 0.06; out.ombroEz = 0.18; out.ombroDz = 0.18;
+    out.quadX = 0.01 * Math.sin(S.fase); out.cotE += 0.0;
+  } else if (pose === 'moto') {
+    const g = Object.assign({}, GEOM_MOTO, p.opcoes.geom || {});
+    out.quadY = 0; out.lean = 0.28; out.cabX = -0.2;
+    [1, -1].forEach((l) => {
+      pernaPara(p, out, l, g.pz, g.py + D.pe + 0.02);
+      const q = paraTronco(out.lean, g.bz, g.by); bracoPara(p, out, l, q[0], q[1]);
+    });
+    out.coxaEz = 0.18; out.coxaDz = 0.18; out.ombroEz = 0.15; out.ombroDz = 0.15;
+    out.cabY = 0.05 * Math.sin(t * 0.4);
+  } else {
+    return alvoPose(p, 'parado', S, v, op);
+  }
+  /* criança de mão dada: braço E do adulto / D da criança fixos */
+  if (mao && (pose === 'andar' || pose === 'parado')) {
+    if (p.opcoes.idade === 'crianca') { out.ombroDz = 0.78; out.ombroDf = -0.1; out.cotD = 0.1; }
+  }
+  if (p.filho && (pose === 'andar' || pose === 'parado')) { out.ombroEz = 0.2; out.ombroEf = 0.02; out.cotE = 0.12; }
+  if (out.quadY == null) {
+    const h = (th, k) => D.L1 * Math.cos(th) + D.L2 * Math.cos(th - k);
+    out.quadY = Math.max(h(out.coxaEf, out.joeE), h(out.coxaDf, out.joeD)) + D.pe;
+  }
+  return out;
+}
+
+/* ============================================================== ANIMAR */
+const CHAVES = Object.keys(nova());
+function misturar(a, b, w) {
+  const o = {};
+  for (let i = 0; i < CHAVES.length; i++) {
+    const k = CHAVES[i];
+    const x = a[k] == null ? b[k] : a[k], y = b[k] == null ? a[k] : b[k];
+    o[k] = (x == null && y == null) ? null : lerp(x, y, w);
+  }
+  return o;
+}
+function aplicar(p, o) {
+  const D = p.dim;
+  /* altura do quadril: pé mais baixo no chão */
+  const qy = o.quadY;
+  p.corpo.position.set(o.quadX, qy, o.quadZ);
+  p.corpo.rotation.set(0, 0, o.corpoRz);
+  p.tronco.rotation.set(o.lean, o.twist, o.roll);
+  const L = p.pernas[0], R = p.pernas[1];
+  L.coxa.rotation.set(-o.coxaEf, 0, o.coxaEz); R.coxa.rotation.set(-o.coxaDf, 0, -o.coxaDz);
+  L.joelho.rotation.x = o.joeE; R.joelho.rotation.x = o.joeD;
+  L.pe.rotation.x = o.coxaEf - o.joeE + o.peOffE; R.pe.rotation.x = o.coxaDf - o.joeD + o.peOffD;
+  p.bracos[0].ombro.rotation.set(-o.ombroEf, 0, o.ombroEz); p.bracos[1].ombro.rotation.set(-o.ombroDf, 0, -o.ombroDz);
+  p.bracos[0].cot.rotation.x = -o.cotE; p.bracos[1].cot.rotation.x = -o.cotD;
+  p.cabeca.rotation.set(o.cabX, o.cabY, o.cabZ);
+}
+function animar(p, t, dt, op) {
+  op = op || {};
+  const S = p.estado, pose = op.pose || p.pose;
+  S.dt = dt; S.t = t;
+  if (op.cadencia != null) S.cadencia = op.cadencia;
+  if (pose !== S.pose) { S.snap = S.out; S.pose = pose; S.w = S.snap ? 0 : 1; p.pose = pose; }
+  S.w = Math.min(1, S.w + dt / 0.28);
+  const v = op.velocidade != null ? op.velocidade : (pose === 'correr' ? 3.2 : pose === 'caixa' ? 0.9 : 1.25);
+  const alvo = alvoPose(p, pose, S, v, op);
+  const out = S.snap && S.w < 1 ? misturar(S.snap, alvo, ease(S.w)) : alvo;
+  S.out = out;
+  aplicar(p, out);
+  p.caixa.visible = pose === 'caixa' || !!op.caixa;
+  if (p.acessorios.celular) p.acessorios.celular.visible = pose === 'celular';
+  /* acessórios que balançam */
+  const ac = p.acessorios, sw = Math.sin(S.fase);
+  const andando = pose === 'andar' || pose === 'correr' || pose === 'caixa';
+  if (ac.sacola) ac.sacola.rotation.x = andando ? 0.18 * Math.sin(S.fase + 0.6) : 0.02;
+  if (ac.balde) ac.balde.rotation.x = andando ? 0.1 * sw : 0;
+  if (ac.mochila) ac.mochila.position.y = p.dim.torso * 0.5 + (andando ? 0.012 * Math.cos(2 * S.fase) : 0);
+  if (p.filho) {
+    const fo = { pose: pose === 'andar' ? 'andar' : 'parado', velocidade: v };
+    animar(p.filho, t, dt, fo);
+  }
+  return p;
+}
+
+/* =========================================================== utilitários */
+function atualizarCores(p, cores) {
+  Object.keys(cores || {}).forEach((k) => {
+    if (k === 'pele' || k === 'cabelo') p.mat[k].color.setHex(cores[k]);
+    else if (p.mat[k]) p.mat[k].color.setHex(cores[k]);
+  });
+  return p;
+}
+function clonar(T, p, sobre) {
+  const op = Object.assign({}, p.opcoes, sobre || {});
+  op.cores = Object.assign({}, p.opcoes.cores, (sobre && sobre.cores) || {});
+  return criar(T, op);
+}
+function liberar(p) { /* descarta materiais (geometrias são compartilhadas) */
+  Object.keys(p.mat).forEach((k) => p.mat[k].dispose());
+  if (p.filho) liberar(p.filho);
+}
+function pick(r, a) { return a[Math.min(a.length - 1, Math.floor(r() * a.length))]; }
+function aleatoria(T, tipo, r) {
+  r = r || Math.random;
+  const pf = PERFIS[tipo] || {};
+  const pFem = { faixineira: 0.8, entregador: 0.2, executivo: 0.4, seguranca: 0.12, morador: 0.55, base: 0.5 }[tipo];
+  const genero = r() < pFem ? 'f' : 'm';
+  const op = {
+    tipo, genero, pele: pick(r, PELES), cabelo: pick(r, CABELOS),
+    corpulencia: 0.88 + r() * 0.32, altura: 0.94 + r() * 0.12, escala: 1,
+    estiloCabelo: genero === 'f' ? pick(r, ['crespo', 'longo', 'coque', 'trancas', 'curto']) : pick(r, ['curto', 'curto', 'crespo', 'careca']),
+    cores: {}
+  };
+  if (tipo === 'base' || tipo === 'morador') {
+    op.cores.blusa = r() < 0.6 ? pick(r, ROUPA_VIVA) : pick(r, ROUPA_NEUTRA);
+    op.cores.calca = r() < 0.6 ? pick(r, JEANS) : pick(r, ROUPA_NEUTRA);
+    op.cores.sapato = pick(r, [0x222222, 0x5a4636, 0xe8e8e8, 0x3a3a52]);
+    op.cores.acento = pick(r, ROUPA_VIVA);
+    if (genero === 'm' && r() < 0.35) op.calcaTipo = 'bermuda';
+    if (tipo === 'morador') { op.filho = r() < 0.35; if (!op.filho && r() < 0.4) op.acessorios = []; }
+  } else if (tipo === 'entregador') {
+    op.cores.blusa = pick(r, [0x2b2f36, 0x3a3f48, 0xe8e8e8]);
+    op.cores.calca = pick(r, JEANS.concat([0x1a1a1a]));
+    op.cores.acento = pick(r, [0xe8472b, 0xf2b01e, 0x2aa7d9, 0xa646e0]);
+    op.veiculo = r() < 0.55 ? 'bike' : 'moto';
+    if (genero === 'm' && r() < 0.4) op.calcaTipo = 'bermuda';
+  } else if (tipo === 'faixineira') {
+    op.cores.blusa = pick(r, [0x4f9fd1, 0x6bbf8a, 0xe8e8e8, 0xd96d8a]);
+    op.cores.calca = pick(r, [0x2f3f5a, 0x1f2a3d, 0xe8e8e8]);
+    op.cores.acento = pick(r, [0xf2f2f2, 0xf0e0a0, 0x8fd0f0]);
+    if (genero === 'm') { op.chapeu = 'bone'; op.acessorios = ['rodo']; op.estiloCabelo = 'curto'; }
+    else op.acessorios = r() < 0.5 ? ['avental', 'balde'] : ['avental', 'rodo'];
+  } else if (tipo === 'executivo') {
+    const t = pick(r, [0x25304a, 0x2f3338, 0x3b3f46, 0x1d2a3f]);
+    op.cores.blusa = t; op.cores.calca = t; op.cores.acento = pick(r, [0xa8283a, 0x2a5aa8, 0x2a2a2a, 0xc0a040]);
+    if (genero === 'f') op.estiloCabelo = pick(r, ['longo', 'coque']);
+  } else if (tipo === 'seguranca') {
+    op.cores.blusa = pick(r, [0xe8e8e8, 0x2a3550]);
+  }
+  return criar(T, op);
+}
+
+/* ======================================================= veículos simples */
+function criarBicicleta(T) {
+  const m = (c) => new T.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.3, flatShading: true });
+  const g = new T.Group(), qua = m(0x39414f), pre = m(0x16181c), cro = m(0xb8bdc6);
+  const r = 0.34, rodas = [];
+  [-0.5, 0.5].forEach((z) => {
+    const w = new T.Group(); w.position.set(0, r, z); g.add(w);
+    const t = new T.Mesh(new T.TorusGeometry(r, 0.03, 6, 20), pre); t.rotation.y = PI / 2; w.add(t);
+    for (let i = 0; i < 4; i++) { const s = new T.Mesh(new T.CylinderGeometry(0.006, 0.006, r * 2, 4), cro); s.rotation.x = i * PI / 4; w.add(s); }
+    rodas.push(w);
+  });
+  const tubo = (a, b, rad, mt) => { const d = new T.Vector3().subVectors(b, a), L = d.length();
+    const me = new T.Mesh(new T.CylinderGeometry(rad, rad, L, 6), mt); me.position.copy(a).addScaledVector(d, 0.5);
+    me.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); g.add(me); return me; };
+  const V = (y, z) => new T.Vector3(0, y, z);
+  tubo(V(r, -0.5), V(0.62, -0.1), 0.02, qua); tubo(V(0.3, 0.12), V(0.62, -0.1), 0.02, qua);
+  tubo(V(r, -0.5), V(0.3, 0.12), 0.02, qua); tubo(V(0.3, 0.12), V(0.88, 0.4), 0.022, qua);
+  tubo(V(0.62, -0.1), V(0.9, 0.38), 0.02, qua); tubo(V(0.88, 0.4), V(r, 0.5), 0.02, qua);
+  tubo(V(0.62, -0.1), V(0.9, -0.1), 0.018, qua);
+  const bar = new T.Mesh(new T.CylinderGeometry(0.014, 0.014, 0.5, 6), pre); bar.rotation.z = PI / 2; bar.position.set(0, 1.0, 0.44); g.add(bar);
+  const selim = new T.Mesh(new T.BoxGeometry(0.12, 0.04, 0.26), pre); selim.position.set(0, 0.93, -0.1); g.add(selim);
+  const crank = new T.Group(); crank.position.set(0, 0.3, 0.12); g.add(crank);
+  [1, -1].forEach((s) => {
+    const arm = new T.Mesh(new T.BoxGeometry(0.025, 0.16, 0.025), cro); arm.position.set(s * 0.1, -0.08 * s, 0); arm.rotation.x = 0;
+    const ped = new T.Mesh(new T.BoxGeometry(0.1, 0.02, 0.1), pre); ped.position.set(s * 0.13, -0.16 * s, 0);
+    const c = new T.Group(); c.add(arm, ped); c.rotation.x = 0; crank.add(c);
+  });
+  return { grupo: g, rodas, crank, raio: r, altAssento: 0.95, zAssento: -0.1, tipo: 'bike' };
+}
+function criarMoto(T) {
+  const m = (c) => new T.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.3, flatShading: true });
+  const g = new T.Group(), pre = m(0x16181c), cor = m(0xc9ccd2), mot = m(0x4a4f58);
+  const r = 0.3, rodas = [];
+  [-0.62, 0.62].forEach((z) => {
+    const w = new T.Group(); w.position.set(0, r, z); g.add(w);
+    const t = new T.Mesh(new T.CylinderGeometry(r, r, 0.12, 14), pre); t.rotation.z = PI / 2; w.add(t);
+    const h = new T.Mesh(new T.CylinderGeometry(0.1, 0.1, 0.14, 8), cor); h.rotation.z = PI / 2; w.add(h);
+    const fx = new T.Mesh(new T.BoxGeometry(0.02, 0.5, 0.02), cor); fx.rotation.x = 0; w.add(fx);
+    rodas.push(w);
+  });
+  const add = (geo, mt, x, y, z, rx) => { const me = new T.Mesh(geo, mt); me.position.set(x, y, z); if (rx) me.rotation.x = rx; g.add(me); return me; };
+  add(new T.BoxGeometry(0.28, 0.3, 0.55), cor, 0, 0.62, 0.1);
+  add(new T.BoxGeometry(0.3, 0.26, 0.4), mot, 0, 0.42, -0.05);
+  add(new T.BoxGeometry(0.22, 0.08, 0.55), pre, 0, 0.8, -0.28);
+  add(new T.BoxGeometry(0.3, 0.26, 0.26), cor, 0, 0.9, 0.36, -0.3);
+  add(new T.CylinderGeometry(0.022, 0.022, 0.62, 6), pre, 0, 0.58, 0.58, 0.3);
+  const bar = add(new T.CylinderGeometry(0.014, 0.014, 0.7, 6), pre, 0, 1.0, 0.5); bar.rotation.z = PI / 2;
+  add(new T.CylinderGeometry(0.05, 0.05, 0.4, 8), mot, 0.2, 0.28, -0.4, 0).rotation.z = PI / 2;
+  const fs = add(new T.SphereGeometry(0.08, 6, 4), new T.MeshBasicMaterial({ color: 0xfff3c0 }), 0, 0.98, 0.6);
+  return { grupo: g, rodas, crank: null, raio: r, altAssento: 0.82, zAssento: -0.28, tipo: 'moto' };
+}
+function montar(p, v) {
+  v.grupo.add(p.grupo);
+  p.grupo.position.set(0, v.altAssento, v.zAssento);
+  p.grupo.rotation.set(0, 0, 0);
+  p.pose = v.tipo === 'moto' ? 'moto' : 'pedalar';
+  p.veiculoMontado = v;
+  return p;
+}
+function animarVeiculo(v, p, dt, velocidade) {
+  const w = (velocidade * dt) / v.raio;
+  v.rodas.forEach((r) => { r.rotation.x += w; });
+  if (v.crank && p) v.crank.rotation.x = -p.estado.fase;
+  return velocidade * 0.45; /* cadência (rev/s) sugerida p/ animar(p,…,{cadencia}) */
+}
+
+return {
+  criar, animar, clonar, aleatoria, atualizarCores, liberar, rng,
+  criarBicicleta, criarMoto, montar, animarVeiculo,
+  tipos: Object.keys(PERFIS), poses: ['parado', 'andar', 'correr', 'sentado', 'caixa', 'celular', 'pedalar', 'moto'],
+  PELES, CABELOS, ROUPA_VIVA, ROUPA_NEUTRA, JEANS, DEFAULTS, PERFIS, GEOM_BIKE, GEOM_MOTO
+};
+};
+
+const Pessoas=factory();
+
+/* ===== pedestres ===== */
+const PED={g:null,l:[],t:0};
+function pedestres(){const T=THREE,g=new T.Group();g.scale.setScalar(CS);sceneC.add(g);PED.g=g;
+ const R=Pessoas.rng(77),rl=k=>(k-4.5)*17,SWK=3.4,ESC=1.7,pk=a=>a[Math.floor(R()*a.length)];
+ const mk=(tipo,o)=>{const p=Pessoas.aleatoria(T,tipo,R);p.grupo.scale.setScalar(ESC);return p;};
+ const walker=(tipo,a,b,vis,pose,v)=>{const p=mk(tipo);const e={p,a,b,s:R(),v:v||1.2,k:'w',vis:vis||(()=>1),pose:pose||'andar',root:p.grupo};g.add(p.grupo);PED.l.push(e);return e;};
+ const stand=(tipo,x,z,ry,vis,pose)=>{const p=mk(tipo);p.grupo.position.set(x,.15,z);p.grupo.rotation.y=ry;Pessoas.animar(p,0,0,{pose:pose||'parado'});const e={p,k:'s',vis:vis||(()=>1),pose:pose||'parado',root:p.grupo};g.add(p.grupo);PED.l.push(e);return e;};
+ const ride=(a,b,vis)=>{const p=Pessoas.aleatoria(T,'entregador',R);p.grupo.scale.setScalar(1);const moto=p.opcoes.veiculo==='moto',v=moto?Pessoas.criarMoto(T):Pessoas.criarBicicleta(T);Pessoas.montar(p,v);v.grupo.scale.setScalar(ESC);g.add(v.grupo);const e={p,v,a,b,s:R(),vel:moto?9:5,k:'b',vis:vis||(()=>1),root:v.grupo};PED.l.push(e);return e;};
+ /* gente da cidade nova: poucos, em ruas fixas, com colegas de terno */
+ [[4,-60,60],[3,-50,40],[5,-30,50]].forEach(([k,x0,x1])=>{const z=rl(k)+SWK;walker('base',[x0,z],[x1,z],0,0,1.3);walker('executivo',[x1,z+.1],[x0,z+.1],0,0,1.4);});
+ for(let i=0;i<4;i++)walker('executivo',[-14+i*3,rl(5)+SWK],[18+i*3,rl(5)+SWK],0,0,1.5);
+ [[2,-70,70],[3,-70,70],[6,-70,70]].forEach(([k,x0,x1],i)=>{ride([x0,rl(k)-2.2],[x1,rl(k)-2.2]);if(i<2)ride([x1,rl(k)+2.2],[x0,rl(k)+2.2]);});
+ /* fila da porta de serviço da Torre Central: só depois da Fase 2 começar */
+ const f2=()=>FASE()>=2;
+ for(let i=0;i<8;i++)stand('faixineira',-.7+(i%2)*1.4,-8.5-i*1.7,0,f2,i%3===0?'celular':'parado');
+ /* vila: bem mais gente por metro quadrado */
+ for(let i=0;i<9;i++){const x=rl(1)+(R()<.5?-SWK:SWK),z0=43+R()*8,z1=z0+14+R()*18;walker('morador',R()<.5?[x,z0]:[x,z1],R()<.5?[x,z1]:[x,z0],0,0,.9+R()*.5);}
+ for(let i=0;i<5;i++)walker('morador',[-95+R()*10,rl(7)+(R()<.5?-SWK:SWK)],[-48+R()*10,rl(7)+(R()<.5?-SWK:SWK)],0,0,.8+R()*.4);
+ for(let i=0;i<6;i++)stand(i<4?'morador':'base',-76+R()*30,rl(8)+(R()<.5?-SWK:SWK)+R()*.6,R()*6.28,0,i%2?'celular':'parado');
+}
+function pedUpd(dt){if(!PED.g)return;PED.t+=dt;const t=PED.t,cp=camC.position;
+ for(const e of PED.l){const on=e.vis();let x,z,ry;
+  if(e.k==='s'){e.root.visible=on;if(!on)continue;const d=e.root.position.clone().multiplyScalar(CS).distanceTo(cp);if(d>300){e.root.visible=false;continue;}Pessoas.animar(e.p,t,dt,{pose:e.pose});continue;}
+  const L=Math.hypot(e.b[0]-e.a[0],e.b[1]-e.a[1])||1,sp=e.k==='b'?e.vel:e.v;
+  e.s=(e.s+dt*sp/L);let u=e.s%1;if(e.k==='w'){const q=u*2;u=q<1?q:2-q;}
+  const dx=(e.b[0]-e.a[0])/L,dz=(e.b[1]-e.a[1])/L;x=e.a[0]+(e.b[0]-e.a[0])*u;z=e.a[1]+(e.b[1]-e.a[1])*u;
+  const back=e.k==='w'&&(e.s%1)*2>=1;ry=Math.atan2(back?-dx:dx,back?-dz:dz);
+  e.root.position.set(x,e.k==='b'?0:.15,z);e.root.rotation.y=ry;
+  const d=e.root.position.clone().multiplyScalar(CS).distanceTo(cp);e.root.visible=on&&d<300;if(!e.root.visible)continue;
+  if(e.k==='b'){const c=Pessoas.animarVeiculo(e.v,e.p,dt,sp);Pessoas.animar(e.p,t,dt,{cadencia:c});}
+  else Pessoas.animar(e.p,t,dt,{pose:'andar',velocidade:sp});}}
+
 /* ================= FASES 3 A 5 ================= */
 const FT={1:'Fase 1 · Moradia',2:'Fase 2 · Trabalho e renda',3:'Fase 3 · Participação',4:'Fase 4 · Emissões',5:'Fase 5 · Aterrar na Casa 17'};
 Object.assign(PQ,{
@@ -2680,13 +3329,13 @@ function update(dt,t){
   dr.x=Math.max(-190,Math.min(190,dr.x));dr.z=Math.max(-190,Math.min(190,dr.z));
   {const d='';if(dicaEl.textContent!==d)dicaEl.textContent=d;}
   camC.position.set(dr.x,dr.y,dr.z+Math.sin(t*1.3)*.15);const f=new THREE.Vector3(-Math.sin(dr.yaw)*Math.cos(dr.pitch),Math.sin(dr.pitch),-Math.cos(dr.yaw)*Math.cos(dr.pitch));camC.lookAt(camC.position.clone().add(f));
-  if(sceneC.userData.cityUpd)sceneC.userData.cityUpd(dt);
+  if(sceneC.userData.cityUpd)sceneC.userData.cityUpd(dt);if(modo==='feed')pedUpd(dt);
   {const bk=sceneC.userData.bike,q2=sceneC.userData.q2;if(bk){const z=((t*6)%260)-130;bk.position.set(CPOS.bikeX,1.4,z);if(q2)q2.pos.set(CPOS.bikeX,4,z);bk.visible=FASE()===2;}}
   $('#alt').textContent=Math.round(dr.y);const d=new Date(2031,2,14,3,12,0,0);d.setSeconds(Math.floor(t));$('#ts').textContent=d.toLocaleString('pt-BR');marcadores();}
 }
 
 /* ================= INICIALIZAÇÃO ================= */
-resize();await montarSala();await jogador();await npcs();await montarCidade();
+resize();await montarSala();await jogador();await npcs();await montarCidade();pedestres();
 for(const h of hot){const bm=new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,160,10,1,true),new THREE.MeshBasicMaterial({color:h.id==='fl'?0x888888:0x00ffe0,transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending}));bm.position.set(h.pos.x,h.pos.y+80,h.pos.z);sceneC.add(bm);h.beam=bm;}
 
 /* ===== conteúdo da Fase 2 ===== */
